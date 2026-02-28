@@ -1,26 +1,97 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* GLX Brand Colors - Light Mode */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 25 20% 60%; /* #D4C5B9 - marrom pastel */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 10% 80%; /* #C9D4C8 - verde pastel */
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 25 20% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 25 20% 60%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* GLX Brand Colors - Dark Mode */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 25 20% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 25 20% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 25 20% 60%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-200;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Melhorias para inputs e selects no dark mode */
+  input,
+  textarea,
+  select {
+    @apply bg-background;
+  }
+
+  /* Melhorar contraste de placeholders no dark mode */
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    @apply text-muted-foreground opacity-50;
+  }
+
+  /* Scrollbar customizada para dark mode */
+  .dark ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  .dark ::-webkit-scrollbar-track {
+    @apply bg-background;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground;
+  }
 }

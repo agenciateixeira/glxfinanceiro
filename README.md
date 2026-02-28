@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏦 Gestão Pessoal GLX
 
-## Getting Started
+Sistema de gestão financeira inteligente para casais, com importação automática de faturas, categorização com IA e autenticação biométrica.
 
-First, run the development server:
+---
 
-```bash
+## 🚀 FASE 1 - COMPLETA ✅
+
+### O que foi implementado:
+
+#### ✅ Setup Base
+- ✅ Projeto Next.js 16 com TypeScript
+- ✅ Tailwind CSS configurado
+- ✅ PWA (Progressive Web App) configurado
+- ✅ Estrutura de pastas organizada
+
+#### ✅ Autenticação
+- ✅ Integração com Supabase Auth
+- ✅ Login/Cadastro com email e senha
+- ✅ **Face ID / Touch ID pronto** (WebAuthn)
+- ✅ Persistência de sessão automática
+- ✅ Middleware de proteção de rotas
+
+#### ✅ Interface
+- ✅ Tela de Login com **Particles.js** (fundo animado)
+- ✅ Design System completo (cores pastéis)
+- ✅ Dashboard placeholder
+- ✅ Animações suaves (fadeIn, float, etc)
+- ✅ Responsivo mobile-first
+
+---
+
+## 🖥️ Como rodar o projeto:
+
+\`\`\`bash
+cd gestao-glx
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+\`\`\`
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse: **http://localhost:3000**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📱 Como testar Face ID:
 
-## Learn More
+### No iPhone (Safari):
+1. Acesse o app via Safari
+2. Faça login com email/senha na primeira vez
+3. Sistema vai perguntar se quer ativar Face ID
+4. Aceite e faça a autenticação com Face ID
+5. Na próxima vez, login será automático com Face ID
 
-To learn more about Next.js, take a look at the following resources:
+### Pré-requisitos:
+- iPhone com Face ID ou Touch ID
+- iOS Safari (Chrome não suporta WebAuthn no iOS)
+- HTTPS (em produção) ou localhost (em dev)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Desenvolvido com ❤️ para melhorar a gestão financeira de casais**
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+🚀 **Fase 1 completa! Pronto para iniciar Fase 2!**

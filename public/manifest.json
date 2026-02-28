@@ -1,0 +1,24 @@
+{
+  "name": "Gestão Pessoal GLX",
+  "short_name": "GLX",
+  "description": "Gestão financeira inteligente para casais",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#D4C5B9",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
