@@ -10,6 +10,7 @@ import { EditTransactionModal } from '@/components/transactions/EditTransactionM
 import { TransactionDetailsModal } from '@/components/transactions/TransactionDetailsModal'
 import { SimpleImportModal } from '@/components/transactions/SimpleImportModal'
 import { ImportReviewModal } from '@/components/transactions/ImportReviewModal'
+import { TransactionFilters, FilterState } from '@/components/transactions/TransactionFilters'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Toast } from '@/components/ui/toast'
 import { Plus, Upload, Filter, Search, Download } from 'lucide-react'
@@ -33,9 +34,14 @@ export default function TransactionsPage() {
   const { user } = useAuth()
   const supabase = createClient()
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  const [filters, setFilters] = useState<FilterState>({
+    period: '30d',
+    categoryIds: [],
+    type: 'all'
+  })
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -63,21 +69,84 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (user) {
       fetchTransactions()
+      fetchCategories()
     }
   }, [user])
+
+  useEffect(() => {
+    if (user) {
+      fetchTransactions()
+    }
+  }, [filters])
 
   const showToast = (title: string, variant: 'success' | 'error' | 'info', description?: string) => {
     setToast({ isOpen: true, title, description, variant })
   }
 
-  const fetchTransactions = async () => {
+  const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .or(`user_id.eq.${user?.id},is_system.eq.true`)
+        .order('name')
+
+      if (error) throw error
+      setCategories(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error)
+    }
+  }
+
+  const getDateFilter = () => {
+    const now = new Date()
+    const periodMap = {
+      '7d': 7,
+      '15d': 15,
+      '30d': 30,
+      '90d': 90
+    }
+
+    if (filters.period === 'all') {
+      return null
+    }
+
+    if (filters.period === 'custom' && filters.customStartDate) {
+      return filters.customStartDate
+    }
+
+    const days = periodMap[filters.period as keyof typeof periodMap]
+    const date = new Date(now)
+    date.setDate(date.getDate() - days)
+    return date.toISOString().split('T')[0]
+  }
+
+  const fetchTransactions = async () => {
+    try {
+      let query = supabase
         .from('recent_transactions')
         .select('*')
         .eq('user_id', user?.id)
-        .order('date', { ascending: false })
-        .limit(100)
+
+      // Filtro de período
+      const dateFilter = getDateFilter()
+      if (dateFilter) {
+        query = query.gte('date', dateFilter)
+      }
+
+      // Filtro de tipo
+      if (filters.type && filters.type !== 'all') {
+        query = query.eq('type', filters.type)
+      }
+
+      // Filtro de categorias
+      if (filters.categoryIds.length > 0) {
+        query = query.in('category_id', filters.categoryIds)
+      }
+
+      query = query.order('date', { ascending: false }).limit(500)
+
+      const { data, error } = await query
 
       if (error) throw error
       setTransactions(data || [])
@@ -233,6 +302,15 @@ export default function TransactionsPage() {
           </div>
         </div>
 
+        {/* Filtros */}
+        <div className="mb-6">
+          <TransactionFilters
+            categories={categories}
+            onFilterChange={setFilters}
+            currentFilters={filters}
+          />
+        </div>
+
         {/* Actions Bar */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a] mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -246,40 +324,6 @@ export default function TransactionsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
               />
-            </div>
-
-            {/* Filter Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilterType('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filterType === 'all'
-                    ? 'bg-[#D4C5B9] text-white'
-                    : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
-                }`}
-              >
-                Todas
-              </button>
-              <button
-                onClick={() => setFilterType('income')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filterType === 'income'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
-                }`}
-              >
-                Receitas
-              </button>
-              <button
-                onClick={() => setFilterType('expense')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filterType === 'expense'
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
-                }`}
-              >
-                Despesas
-              </button>
             </div>
 
             {/* Action Buttons */}

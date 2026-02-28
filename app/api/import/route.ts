@@ -3,29 +3,13 @@ import { parsePDFText } from '@/lib/services/pdfParser'
 import { parseUniversal } from '@/lib/services/universalParser'
 import { createClient } from '@/lib/supabase/server'
 import { suggestCategory } from '@/lib/services/categorization'
+import { detectPeriod, checkDuplicatePeriod } from '@/lib/services/periodDetection'
+import pdfParse from 'pdf-parse-fork'
 
-// Função para extrair texto do PDF usando pdfjs-dist/legacy
+// Função para extrair texto do PDF
 async function parsePDF(buffer: Buffer) {
-  // Importa a versão legacy para Node.js
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-
-  const uint8Array = new Uint8Array(buffer)
-  const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
-  const pdf = await loadingTask.promise
-
-  let fullText = ''
-
-  // Extrai texto de todas as páginas
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const textContent = await page.getTextContent()
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ')
-    fullText += pageText + '\n'
-  }
-
-  return { text: fullText, numPages: pdf.numPages }
+  const data = await pdfParse(buffer)
+  return { text: data.text, numPages: data.numpages }
 }
 
 export async function POST(request: NextRequest) {
@@ -62,7 +46,7 @@ export async function POST(request: NextRequest) {
     // Parse baseado no tipo de arquivo
     if (filename.endsWith('.pdf')) {
       // PDF - usa parser específico
-      const pdfData = await pdfParse(buffer)
+      const pdfData = await parsePDF(buffer)
       const pdfResult = parsePDFText(pdfData.text)
 
       transactions = pdfResult.transactions
@@ -175,6 +159,21 @@ export async function POST(request: NextRequest) {
       })
     )
 
+    // Detecta período automaticamente
+    const detectedPeriod = detectPeriod(transactions)
+
+    // Verifica se já existe importação para este período
+    const sourceType = filename.endsWith('.pdf') ? 'pdf' :
+                      filename.endsWith('.csv') ? 'csv' :
+                      filename.endsWith('.xml') ? 'xml' : 'ofx'
+
+    const duplicateCheck = await checkDuplicatePeriod(
+      user.id,
+      detectedPeriod.startDate,
+      detectedPeriod.endDate,
+      sourceType
+    )
+
     return NextResponse.json({
       success: true,
       transactions: categorizedTransactions,
@@ -186,6 +185,11 @@ export async function POST(request: NextRequest) {
         totalIncome: parseResult.totalIncome,
         totalExpense: parseResult.totalExpense,
         newCategoriesCreated: newCategories
+      },
+      period: {
+        ...detectedPeriod,
+        isDuplicate: duplicateCheck.exists,
+        fileName: file.name
       }
     })
   } catch (error) {

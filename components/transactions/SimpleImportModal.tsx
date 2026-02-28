@@ -111,12 +111,42 @@ export function SimpleImportModal({ isOpen, onClose, onSuccess }: SimpleImportMo
 
                 <div className="text-center">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
-                    Arquivo processado com sucesso!
+                    {processedData.period?.isDuplicate ? 'Período já importado!' : 'Arquivo processado com sucesso!'}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {processedData.metadata?.totalTransactions || 0} transação(ões) encontrada(s)
                   </p>
+                  {processedData.period?.isDuplicate && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      ⚠️ Já existe uma importação para este período. Importar novamente pode criar duplicatas.
+                    </p>
+                  )}
                 </div>
+
+                {/* Período Detectado */}
+                {processedData.period && (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                        Período Detectado
+                      </h4>
+                    </div>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                      {processedData.period.suggestedLabel}
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      {new Date(processedData.period.startDate).toLocaleDateString('pt-BR')} a {new Date(processedData.period.endDate).toLocaleDateString('pt-BR')}
+                    </p>
+                    {processedData.period.confidence !== 'high' && (
+                      <p className="text-xs text-blue-500 dark:text-blue-400 mt-2">
+                        Confiança: {processedData.period.confidence === 'medium' ? 'Média' : 'Baixa'}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="bg-gray-50 dark:bg-[#2a2a2a] rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">

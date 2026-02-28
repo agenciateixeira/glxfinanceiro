@@ -2,28 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { parsePDFText, validatePDFContent } from '@/lib/services/pdfParser'
 import { createClient } from '@/lib/supabase/server'
 import { suggestCategory } from '@/lib/services/categorization'
+import pdfParse from 'pdf-parse-fork'
 
-// Função para extrair texto do PDF usando pdfjs-dist/legacy
+// Função para extrair texto do PDF
 async function parsePDF(buffer: Buffer) {
-  // Importa a versão legacy para Node.js
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-
-  const uint8Array = new Uint8Array(buffer)
-  const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
-  const pdf = await loadingTask.promise
-
-  let fullText = ''
-
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const textContent = await page.getTextContent()
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ')
-    fullText += pageText + '\n'
-  }
-
-  return { text: fullText, numPages: pdf.numPages }
+  const data = await pdfParse(buffer)
+  return { text: data.text, numpages: data.numpages }
 }
 
 export async function POST(request: NextRequest) {

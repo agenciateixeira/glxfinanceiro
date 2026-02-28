@@ -53,12 +53,13 @@ const BANK_PATTERNS = {
     dateFormat: 'DD/MM/YYYY'
   },
 
-  // Santander
+  // Santander (PJ e PF)
   santander: {
     name: 'Santander',
-    // Exemplo: 15/01 COMPRA CARTAO CREDITO 125,00
-    pattern: /(\d{2}\/\d{2})\s+([^\n]+?)\s+([\d.]+,\d{2})/gi,
-    dateFormat: 'DD/MM'
+    // Exemplo: 23/02/2026 Tarifa Avulsa Envio Pix - R$ 7,80
+    // Exemplo: 23/02/2026 Saldo do dia Cc + ContaMax principal R$ 827,93
+    pattern: /(\d{2}\/\d{2}\/\d{4})\s+([^\n]+?)\s+(-\s*)?R?\$\s*([\d.]+,\d{2})/gi,
+    dateFormat: 'DD/MM/YYYY'
   },
 
   // Caixa
@@ -280,6 +281,13 @@ function parseWithPattern(
         // Nubank sempre mostra despesas
         typeIndicator = '-'
       }
+      // Santander format
+      else if (patternName === 'santander') {
+        date = normalizeDate(match[1], pattern.dateFormat, currentYear)
+        description = cleanDescription(match[2])
+        typeIndicator = match[3] ? '-' : '+' // Se tem "- " antes do R$, é despesa
+        amountStr = match[4]
+      }
       // Itaú format
       else if (patternName === 'itau') {
         date = normalizeDate(match[1], pattern.dateFormat, currentYear)
@@ -302,6 +310,13 @@ function parseWithPattern(
 
       // Valida se a descrição não está vazia
       if (!description || description.length < 3) continue
+
+      // Ignora linhas de saldo (não são transações)
+      if (description.toLowerCase().includes('saldo do dia') ||
+          description.toLowerCase().includes('saldo anterior') ||
+          description.toLowerCase().includes('saldo atual')) {
+        continue
+      }
 
       const amount = parseBrazilianNumber(amountStr.replace(/[+-]/g, ''))
 
