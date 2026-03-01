@@ -38,6 +38,12 @@ Execute os seguintes comandos SQL no Supabase:
 -- Execute: lib/sql/add_person_to_recurring_expenses.sql
 ```
 
+## 7. Criar tabela de configuração de layout do dashboard
+
+```sql
+-- Execute: lib/sql/dashboard_layout.sql
+```
+
 ## Como executar:
 
 1. Abra o Supabase Dashboard
