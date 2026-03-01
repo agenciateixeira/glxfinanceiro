@@ -111,8 +111,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 bg-white dark:bg-[#1a1a1a] border-r border-gray-200 dark:border-[#2a2a2a] transition-colors">
-      {/* Logo */}
-      <div className="flex items-center justify-center h-20 border-b border-gray-200 dark:border-[#2a2a2a]">
+      {/* Logo + Theme Toggle */}
+      <div className="flex items-center justify-between px-4 h-20 border-b border-gray-200 dark:border-[#2a2a2a]">
         <Link href="/dashboard">
           <Image
             src="/logo.png"
@@ -122,6 +122,7 @@ export function Sidebar() {
             className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-200"
           />
         </Link>
+        <ThemeToggle />
       </div>
 
       {/* Navigation */}
@@ -207,26 +208,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom Section */}
-      <div className="flex flex-col px-4 py-4 space-y-2 border-t border-gray-200 dark:border-[#2a2a2a]">
-        {/* Notificações */}
-        <button
-          className="group flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] hover:text-gray-900 dark:hover:text-gray-100 transition-all duration-200"
-        >
-          <div className="relative">
-            <Bell className="w-5 h-5" />
-            {/* Badge de notificações */}
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </div>
-          <span className="text-sm font-medium">Notificações</span>
-        </button>
-
-        {/* Theme Toggle */}
-        <div className="flex items-center gap-3 px-4 py-3">
-          <ThemeToggle />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tema</span>
-        </div>
-
+      {/* Bottom Section - Apenas User Card */}
+      <div className="px-4 py-4 border-t border-gray-200 dark:border-[#2a2a2a]">
         {/* User Dropdown */}
         <div className="relative">
           <button
@@ -266,6 +249,20 @@ export function Sidebar() {
 
                 {/* Menu Items */}
                 <div className="py-1">
+                  <button
+                    onClick={() => setIsDropdownOpen(false)}
+                    className="flex items-center justify-between w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Bell className="w-4 h-4" />
+                        {/* Badge de notificações */}
+                        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                      </div>
+                      <span>Notificações</span>
+                    </div>
+                    <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">3</span>
+                  </button>
                   <Link
                     href="/profile"
                     onClick={() => setIsDropdownOpen(false)}
