@@ -32,6 +32,12 @@ Execute os seguintes comandos SQL no Supabase:
 -- Execute: lib/sql/goals.sql
 ```
 
+## 6. Adicionar coluna person em recurring_expenses
+
+```sql
+-- Execute: lib/sql/add_person_to_recurring_expenses.sql
+```
+
 ## Como executar:
 
 1. Abra o Supabase Dashboard

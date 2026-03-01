@@ -17,10 +17,9 @@ import {
   Calendar,
   DollarSign,
   RefreshCw,
-  AlertCircle,
-  CheckCircle,
-  TrendingUp,
   Tag,
+  Users,
+  User,
 } from 'lucide-react'
 
 interface RecurringExpense {
@@ -31,6 +30,7 @@ interface RecurringExpense {
   expected_day: number | null
   is_active: boolean
   auto_detected: boolean
+  person: 'person1' | 'person2' | 'shared'
   created_at: string
   updated_at: string
   categories?: {
@@ -47,12 +47,18 @@ interface Category {
   icon: string
 }
 
+interface FinancialSettings {
+  person1_name: string
+  person2_name: string
+}
+
 export default function RecurringExpensesPage() {
   const { user } = useAuth()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [expenses, setExpenses] = useState<RecurringExpense[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [settings, setSettings] = useState<FinancialSettings | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<RecurringExpense | null>(null)
   const [saving, setSaving] = useState(false)
@@ -61,6 +67,7 @@ export default function RecurringExpensesPage() {
     category_id: '',
     expected_amount: '',
     expected_day: '',
+    person: 'shared' as 'person1' | 'person2' | 'shared',
   })
 
   const [toast, setToast] = useState<{
@@ -82,8 +89,25 @@ export default function RecurringExpensesPage() {
     if (user) {
       fetchExpenses()
       fetchCategories()
+      fetchSettings()
     }
   }, [user])
+
+  const fetchSettings = async () => {
+    if (!user) return
+
+    try {
+      const { data } = await supabase
+        .from('financial_settings')
+        .select('person1_name, person2_name')
+        .eq('user_id', user.id)
+        .single()
+
+      setSettings(data)
+    } catch (error) {
+      console.error('Erro ao carregar configurações:', error)
+    }
+  }
 
   const fetchExpenses = async () => {
     if (!user) return
@@ -137,6 +161,7 @@ export default function RecurringExpensesPage() {
         category_id: expense.category_id || '',
         expected_amount: expense.expected_amount.toString(),
         expected_day: expense.expected_day?.toString() || '',
+        person: expense.person || 'shared',
       })
     } else {
       setEditingExpense(null)
@@ -145,6 +170,7 @@ export default function RecurringExpensesPage() {
         category_id: '',
         expected_amount: '',
         expected_day: '',
+        person: 'shared',
       })
     }
     setIsModalOpen(true)
@@ -153,12 +179,6 @@ export default function RecurringExpensesPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingExpense(null)
-    setFormData({
-      description: '',
-      category_id: '',
-      expected_amount: '',
-      expected_day: '',
-    })
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -172,6 +192,7 @@ export default function RecurringExpensesPage() {
         category_id: formData.category_id || null,
         expected_amount: parseFloat(formData.expected_amount),
         expected_day: formData.expected_day ? parseInt(formData.expected_day) : null,
+        person: formData.person,
         auto_detected: false,
       }
 
@@ -241,14 +262,35 @@ export default function RecurringExpensesPage() {
     }
   }
 
+  const getPersonLabel = (person: 'person1' | 'person2' | 'shared') => {
+    if (person === 'shared') return 'Compartilhado'
+    if (person === 'person1') return settings?.person1_name || 'Pessoa 1'
+    if (person === 'person2') return settings?.person2_name || 'Pessoa 2'
+    return ''
+  }
+
+  const getPersonIcon = (person: 'person1' | 'person2' | 'shared') => {
+    if (person === 'shared') return <Users className="h-3 w-3" />
+    return <User className="h-3 w-3" />
+  }
+
+  const getPersonColor = (person: 'person1' | 'person2' | 'shared') => {
+    if (person === 'shared') return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
+    if (person === 'person1') return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+    if (person === 'person2') return 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300'
+    return ''
+  }
+
   const getTotalMonthly = () => {
     return expenses
       .filter(e => e.is_active)
       .reduce((sum, e) => sum + e.expected_amount, 0)
   }
 
-  const getActiveCount = () => {
-    return expenses.filter(e => e.is_active).length
+  const getTotalByPerson = (person: 'person1' | 'person2' | 'shared') => {
+    return expenses
+      .filter(e => e.is_active && e.person === person)
+      .reduce((sum, e) => sum + e.expected_amount, 0)
   }
 
   if (loading) {
@@ -273,61 +315,78 @@ export default function RecurringExpensesPage() {
 
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
-                Gastos Fixos Recorrentes
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Gerencie seus gastos mensais fixos
-              </p>
-            </div>
-            <Button
-              onClick={() => handleOpenModal()}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Gasto Fixo
-            </Button>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <RefreshCw className="h-7 w-7 text-primary-600" />
+              Gastos Fixos
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Gerencie seus gastos mensais recorrentes
+            </p>
           </div>
+          <Button
+            onClick={() => handleOpenModal()}
+            className="bg-primary-600 hover:bg-primary-700 text-white shrink-0"
+          >
+            <Plus className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Novo Gasto</span>
+          </Button>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Total de Gastos</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{expenses.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Ativos</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{getActiveCount()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                <DollarSign className="h-5 w-5 text-white" />
               </div>
               <div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Total Mensal</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                   {formatCurrency(getTotalMonthly())}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Compartilhado</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {formatCurrency(getTotalByPerson('shared'))}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{getPersonLabel('person1')}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {formatCurrency(getTotalByPerson('person1'))}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-pink-600 rounded-lg flex items-center justify-center">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{getPersonLabel('person2')}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {formatCurrency(getTotalByPerson('person2'))}
                 </p>
               </div>
             </div>
@@ -355,7 +414,7 @@ export default function RecurringExpensesPage() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {expenses.map((expense) => {
               const category = expense.categories
               const isActive = expense.is_active
@@ -363,14 +422,14 @@ export default function RecurringExpensesPage() {
               return (
                 <div
                   key={expense.id}
-                  className={`bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-5 border transition-all ${
+                  className={`bg-white dark:bg-gray-800 rounded-xl p-5 border transition-all ${
                     isActive
                       ? 'border-gray-200 dark:border-gray-700'
-                      : 'border-gray-200 dark:border-gray-700 opacity-60'
+                      : 'border-gray-200 dark:border-gray-700 opacity-50'
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Category Icon */}
+                  {/* Header */}
+                  <div className="flex items-start gap-3 mb-3">
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
                       style={{
@@ -379,88 +438,92 @@ export default function RecurringExpensesPage() {
                     >
                       {category?.icon || '📦'}
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {expense.description}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                            {category && (
-                              <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                                <Tag className="h-3 w-3" />
-                                {category.name}
-                              </span>
-                            )}
-                            {expense.expected_day && (
-                              <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                Dia {expense.expected_day}
-                              </span>
-                            )}
-                            {expense.auto_detected && (
-                              <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                                Auto-detectado
-                              </span>
-                            )}
-                            {!isActive && (
-                              <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full">
-                                Inativo
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                            {formatCurrency(expense.expected_amount)}
-                          </p>
-                          <p className="text-xs text-gray-500">por mês</p>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 mt-3">
-                        <Button
-                          onClick={() => handleToggleActive(expense)}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          {isActive ? (
-                            <>
-                              <X className="h-3 w-3 mr-1" />
-                              Desativar
-                            </>
-                          ) : (
-                            <>
-                              <Check className="h-3 w-3 mr-1" />
-                              Ativar
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => handleOpenModal(expense)}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          <Edit2 className="h-3 w-3 mr-1" />
-                          Editar
-                        </Button>
-                        <Button
-                          onClick={() => handleDelete(expense.id)}
-                          variant="outline"
-                          size="sm"
-                          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Excluir
-                        </Button>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
+                        {expense.description}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        {category && (
+                          <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            {category.name}
+                          </span>
+                        )}
+                        {expense.expected_day && (
+                          <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Dia {expense.expected_day}
+                          </span>
+                        )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Amount and Person */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                        {formatCurrency(expense.expected_amount)}
+                      </p>
+                      <p className="text-xs text-gray-500">por mês</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${getPersonColor(expense.person)}`}>
+                      {getPersonIcon(expense.person)}
+                      {getPersonLabel(expense.person)}
+                    </span>
+                  </div>
+
+                  {/* Status Badges */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {!isActive && (
+                      <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
+                        Inativo
+                      </span>
+                    )}
+                    {expense.auto_detected && (
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                        Auto-detectado
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <Button
+                      onClick={() => handleOpenModal(expense)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <Edit2 className="h-3 w-3 mr-1" />
+                      Editar
+                    </Button>
+                    <Button
+                      onClick={() => handleToggleActive(expense)}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      {isActive ? (
+                        <>
+                          <X className="h-3 w-3 mr-1" />
+                          Desativar
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-3 w-3 mr-1" />
+                          Ativar
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => handleDelete(expense.id)}
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               )
@@ -491,6 +554,50 @@ export default function RecurringExpensesPage() {
                   placeholder="Ex: Aluguel, Internet, Netflix..."
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Quem usa este gasto? *
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, person: 'person1' })}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      formData.person === 'person1'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <User className="h-5 w-5 mx-auto mb-1" />
+                    <p className="text-xs font-medium truncate">{getPersonLabel('person1')}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, person: 'person2' })}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      formData.person === 'person2'
+                        ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <User className="h-5 w-5 mx-auto mb-1" />
+                    <p className="text-xs font-medium truncate">{getPersonLabel('person2')}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, person: 'shared' })}
+                    className={`p-3 rounded-lg border-2 transition-all ${
+                      formData.person === 'shared'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <Users className="h-5 w-5 mx-auto mb-1" />
+                    <p className="text-xs font-medium">Compartilhado</p>
+                  </button>
+                </div>
               </div>
 
               <div>
