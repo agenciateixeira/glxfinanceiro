@@ -1238,7 +1238,11 @@ export default function DashboardPage() {
                   <div key={category.category_id}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">{category.category_icon}</span>
+                        {/* Bolinha colorida da categoria */}
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: category.category_color }}
+                        />
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {category.category_name}
                         </span>

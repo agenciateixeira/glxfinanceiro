@@ -50,29 +50,33 @@ export function Sidebar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({})
   const [userName, setUserName] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const supabase = createClient()
 
   const toggleSubmenu = (itemName: string) => {
     setOpenSubmenus(prev => ({ ...prev, [itemName]: !prev[itemName] }))
   }
 
-  // Buscar nome do usuário
+  // Buscar dados do usuário (nome e avatar)
   useEffect(() => {
-    async function fetchUserName() {
+    async function fetchUserData() {
       if (!user?.id) return
 
       const { data, error } = await supabase
         .from('users')
-        .select('full_name')
+        .select('full_name, avatar_url')
         .eq('id', user.id)
         .single()
 
       if (data?.full_name) {
         setUserName(data.full_name)
       }
+      if (data?.avatar_url) {
+        setAvatarUrl(data.avatar_url)
+      }
     }
 
-    fetchUserName()
+    fetchUserData()
   }, [user?.id])
 
   // Abrir submenu automaticamente se estiver em uma das páginas do submenu
@@ -217,8 +221,19 @@ export function Sidebar() {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-[#D4C5B9] to-[#B4A5A5] text-white hover:shadow-lg transition-all duration-200"
           >
-            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-semibold">{getInitials()}</span>
+            {/* Avatar - mostra foto se existir */}
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center flex-shrink-0 border-2 border-white/30">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt="Foto de perfil"
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-semibold">{getInitials()}</span>
+              )}
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-medium truncate">{getFirstName()}</p>
@@ -240,12 +255,31 @@ export function Sidebar() {
               <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-[#1a1a1a] rounded-xl shadow-xl border border-gray-200 dark:border-[#2a2a2a] py-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
                 {/* User Info */}
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {userName || user?.email}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {user?.email}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-[#2a2a2a] flex-shrink-0 border-2 border-gray-200 dark:border-[#3a3a3a]">
+                      {avatarUrl ? (
+                        <Image
+                          src={avatarUrl}
+                          alt="Foto de perfil"
+                          width={40}
+                          height={40}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">{getInitials()}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {userName || user?.email}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Menu Items */}
