@@ -10,16 +10,18 @@ export interface WidgetConfig {
 
 // Layout padrão dos widgets
 const DEFAULT_WIDGETS: WidgetConfig[] = [
-  { id: 'goal-progress', label: 'Progresso da Meta', position: 0, isVisible: true },
-  { id: 'recent-transactions', label: 'Transações Recentes', position: 1, isVisible: true },
-  { id: 'upcoming-expenses', label: 'Próximos Gastos', position: 2, isVisible: true },
-  { id: 'comparison', label: 'Comparativo do Período', position: 3, isVisible: true },
-  { id: 'income-stat', label: 'Receita Mensal', position: 4, isVisible: true },
-  { id: 'fixed-expenses-stat', label: 'Gastos Fixos', position: 5, isVisible: true },
-  { id: 'variable-expenses-stat', label: 'Gastos Variáveis', position: 6, isVisible: true },
-  { id: 'balance-stat', label: 'Saldo do Mês', position: 7, isVisible: true },
-  { id: 'fixed-expenses-list', label: 'Lista de Gastos Fixos', position: 8, isVisible: true },
-  { id: 'variable-expenses-chart', label: 'Gastos por Categoria', position: 9, isVisible: true },
+  { id: 'projection-alert', label: 'Alerta de Projeção', position: 0, isVisible: true },
+  { id: 'financial-insights', label: 'Insights Financeiros', position: 1, isVisible: true },
+  { id: 'goal-progress', label: 'Progresso da Meta', position: 2, isVisible: true },
+  { id: 'recent-transactions', label: 'Transações Recentes', position: 3, isVisible: true },
+  { id: 'upcoming-expenses', label: 'Próximos Gastos', position: 4, isVisible: true },
+  { id: 'comparison', label: 'Comparativo do Período', position: 5, isVisible: true },
+  { id: 'income-stat', label: 'Receita Mensal', position: 6, isVisible: true },
+  { id: 'fixed-expenses-stat', label: 'Gastos Fixos', position: 7, isVisible: true },
+  { id: 'variable-expenses-stat', label: 'Gastos Variáveis', position: 8, isVisible: true },
+  { id: 'balance-stat', label: 'Saldo do Mês', position: 9, isVisible: true },
+  { id: 'fixed-expenses-list', label: 'Lista de Gastos Fixos', position: 10, isVisible: true },
+  { id: 'variable-expenses-chart', label: 'Gastos por Categoria', position: 11, isVisible: true },
 ]
 
 interface UseWidgetLayoutReturn {

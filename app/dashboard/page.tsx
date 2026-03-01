@@ -499,41 +499,69 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Projection Alert */}
-        <div className={`mb-6 rounded-xl p-4 sm:p-6 border ${projectionColors.bg} ${projectionColors.border}`}>
-          <div className="flex items-start gap-3 sm:gap-4">
-            <div className="flex-shrink-0">
-              {projection.projectedStatus === 'surplus' ? (
-                <CheckCircle className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
-              ) : projection.projectedStatus === 'tight' ? (
-                <Clock className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
-              ) : (
-                <AlertTriangle className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
+        {/* Widgets Grid - Com DndContext */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={widgets.map(w => w.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-6">
+              {/* Projection Alert */}
+              {(isEditMode || isWidgetVisible('projection-alert')) && (
+                <DraggableWidget
+                  id="projection-alert"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('projection-alert')}
+                  label="Alerta de Projeção"
+                  onToggleVisibility={() => toggleWidgetVisibility('projection-alert')}
+                >
+                  <div className={`rounded-xl p-4 sm:p-6 border ${projectionColors.bg} ${projectionColors.border}`}>
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex-shrink-0">
+                        {projection.projectedStatus === 'surplus' ? (
+                          <CheckCircle className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
+                        ) : projection.projectedStatus === 'tight' ? (
+                          <Clock className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
+                        ) : (
+                          <AlertTriangle className={`h-6 w-6 sm:h-7 sm:w-7 ${projectionColors.text}`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`text-base sm:text-lg font-bold ${projectionColors.text} mb-1`}>
+                          {projection.projectedStatus === 'surplus' ? 'Finanças Saudáveis' :
+                           projection.projectedStatus === 'tight' ? 'Orçamento Apertado' :
+                           'Alerta de Déficit'}
+                        </h3>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                          {projectionMessage}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Projeção</p>
+                        <p className={`text-lg sm:text-xl font-bold ${projectionColors.text}`}>
+                          {formatCurrency(projection.projectedBalance)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </DraggableWidget>
               )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className={`text-base sm:text-lg font-bold ${projectionColors.text} mb-1`}>
-                {projection.projectedStatus === 'surplus' ? 'Finanças Saudáveis' :
-                 projection.projectedStatus === 'tight' ? 'Orçamento Apertado' :
-                 'Alerta de Déficit'}
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {projectionMessage}
-              </p>
-            </div>
-            <div className="flex-shrink-0 text-right">
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Projeção</p>
-              <p className={`text-lg sm:text-xl font-bold ${projectionColors.text}`}>
-                {formatCurrency(projection.projectedBalance)}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Financial Insights */}
-        {insights.length > 0 && (
-          <div className="mb-6 space-y-3">
-            {insights.map((insight, index) => {
+              {/* Financial Insights */}
+              {insights.length > 0 && (isEditMode || isWidgetVisible('financial-insights')) && (
+                <DraggableWidget
+                  id="financial-insights"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('financial-insights')}
+                  label="Insights Financeiros"
+                  onToggleVisibility={() => toggleWidgetVisibility('financial-insights')}
+                >
+                  <div className="space-y-3">
+                    {insights.map((insight, index) => {
               const severityColors = {
                 critical: {
                   bg: 'bg-rose-50 dark:bg-rose-950/20',
@@ -591,15 +619,23 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                      </div>
+                    )
+                  })}
+                  </div>
+                </DraggableWidget>
+              )}
 
-        {/* Goal Progress */}
-        {goalProgress && (
-          <div className="mb-6 bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+              {/* Goal Progress */}
+              {goalProgress && (isEditMode || isWidgetVisible('goal-progress')) && (
+                <DraggableWidget
+                  id="goal-progress"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('goal-progress')}
+                  label="Progresso da Meta"
+                  onToggleVisibility={() => toggleWidgetVisibility('goal-progress')}
+                >
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
                 <Target className="h-5 w-5 text-white" />
@@ -713,22 +749,11 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Widgets Grid - Recent Transactions & Upcoming Expenses */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={widgets.map(w => w.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-6 mb-6">
+                    </div>
+                  )}
+                  </div>
+                </DraggableWidget>
+              )}
               {/* Recent Transactions Widget */}
               {(isEditMode || isWidgetVisible('recent-transactions')) && (
                 <DraggableWidget
@@ -896,13 +921,17 @@ export default function DashboardPage() {
           </div>
                 </DraggableWidget>
               )}
-            </div>
-          </SortableContext>
-        </DndContext>
 
-        {/* Monthly Comparison Summary */}
-        {(monthlyComparison.incomeChange !== 0 || monthlyComparison.expensesChange !== 0) && (
-          <div className="mb-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-xl p-4 sm:p-6 border border-purple-200 dark:border-purple-800">
+              {/* Monthly Comparison Summary */}
+              {(monthlyComparison.incomeChange !== 0 || monthlyComparison.expensesChange !== 0) && (isEditMode || isWidgetVisible('comparison')) && (
+                <DraggableWidget
+                  id="comparison"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('comparison')}
+                  label="Comparativo do Período"
+                  onToggleVisibility={() => toggleWidgetVisibility('comparison')}
+                >
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-xl p-4 sm:p-6 border border-purple-200 dark:border-purple-800">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-600 rounded-lg flex items-center justify-center">
                 <Info className="h-5 w-5 text-white" />
@@ -949,15 +978,24 @@ export default function DashboardPage() {
                 <p className="text-xs text-gray-500 dark:text-gray-500">
                   {monthlyComparison.balanceChange > 0 ? 'Melhora' : monthlyComparison.balanceChange < 0 ? 'Piora' : 'Mantido'} no saldo
                 </p>
-              </div>
-            </div>
-          </div>
-        )}
+                  </div>
+                </div>
+                  </div>
+                </DraggableWidget>
+              )}
 
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Total Income */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
+              {/* Main Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Total Income */}
+                {(isEditMode || isWidgetVisible('income-stat')) && (
+                  <DraggableWidget
+                    id="income-stat"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('income-stat')}
+                    label="Receita Mensal"
+                    onToggleVisibility={() => toggleWidgetVisibility('income-stat')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
                 <TrendingUp className="h-5 w-5 text-white" />
@@ -977,11 +1015,21 @@ export default function DashboardPage() {
                 <Calendar className="h-3 w-3" />
                 <span>Próxima em {projection.daysUntilNextIncome} dias</span>
               </div>
-            )}
-          </div>
+                    )}
+                    </div>
+                  </DraggableWidget>
+                )}
 
-          {/* Fixed Expenses */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
+                {/* Fixed Expenses */}
+                {(isEditMode || isWidgetVisible('fixed-expenses-stat')) && (
+                  <DraggableWidget
+                    id="fixed-expenses-stat"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('fixed-expenses-stat')}
+                    label="Gastos Fixos"
+                    onToggleVisibility={() => toggleWidgetVisibility('fixed-expenses-stat')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-br from-rose-400 to-rose-600 rounded-lg flex items-center justify-center">
                 <TrendingDown className="h-5 w-5 text-white" />
@@ -997,12 +1045,22 @@ export default function DashboardPage() {
               </div>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              {projection.confirmedRecurringExpenses.length} gastos recorrentes
-            </p>
-          </div>
+                    {projection.confirmedRecurringExpenses.length} gastos recorrentes
+                      </p>
+                    </div>
+                  </DraggableWidget>
+                )}
 
-          {/* Variable Expenses */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
+                {/* Variable Expenses */}
+                {(isEditMode || isWidgetVisible('variable-expenses-stat')) && (
+                  <DraggableWidget
+                    id="variable-expenses-stat"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('variable-expenses-stat')}
+                    label="Gastos Variáveis"
+                    onToggleVisibility={() => toggleWidgetVisibility('variable-expenses-stat')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
                 <DollarSign className="h-5 w-5 text-white" />
@@ -1018,12 +1076,22 @@ export default function DashboardPage() {
               </div>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              Média últimos 3 meses
-            </p>
-          </div>
+                    Média últimos 3 meses
+                      </p>
+                    </div>
+                  </DraggableWidget>
+                )}
 
-          {/* Current Month */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
+                {/* Current Month */}
+                {(isEditMode || isWidgetVisible('balance-stat')) && (
+                  <DraggableWidget
+                    id="balance-stat"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('balance-stat')}
+                    label="Saldo do Mês"
+                    onToggleVisibility={() => toggleWidgetVisibility('balance-stat')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
                 <Calendar className="h-5 w-5 text-white" />
@@ -1043,15 +1111,25 @@ export default function DashboardPage() {
               </div>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-        </div>
+                    {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </DraggableWidget>
+                )}
+              </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Fixed Expenses List */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Fixed Expenses List */}
+                {(isEditMode || isWidgetVisible('fixed-expenses-list')) && (
+                  <DraggableWidget
+                    id="fixed-expenses-list"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('fixed-expenses-list')}
+                    label="Lista de Gastos Fixos"
+                    onToggleVisibility={() => toggleWidgetVisibility('fixed-expenses-list')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 Gastos Fixos Confirmados
@@ -1107,11 +1185,21 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
               </div>
-            )}
-          </div>
+                  )}
+                    </div>
+                  </DraggableWidget>
+                )}
 
-          {/* Variable Expenses by Category */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+                {/* Variable Expenses by Category */}
+                {(isEditMode || isWidgetVisible('variable-expenses-chart')) && (
+                  <DraggableWidget
+                    id="variable-expenses-chart"
+                    isEditMode={isEditMode}
+                    isVisible={isWidgetVisible('variable-expenses-chart')}
+                    label="Gastos por Categoria"
+                    onToggleVisibility={() => toggleWidgetVisibility('variable-expenses-chart')}
+                  >
+                    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
               Gastos Variáveis por Categoria
             </h2>
@@ -1154,9 +1242,14 @@ export default function DashboardPage() {
                   Adicione transações para ver análise de gastos variáveis
                 </p>
               </div>
-            )}
-          </div>
-        </div>
+                  )}
+                    </div>
+                  </DraggableWidget>
+                )}
+              </div>
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
     </DashboardLayout>
   )
