@@ -138,6 +138,12 @@ export default function DashboardPage() {
     return widget?.isVisible ?? true
   }
 
+  // Helper para obter a posição de um widget
+  const getWidgetOrder = (widgetId: string) => {
+    const widget = widgets.find(w => w.id === widgetId)
+    return widget?.position ?? 0
+  }
+
   const getDateFilter = () => {
     const now = new Date()
     const periodMap = {
@@ -509,7 +515,7 @@ export default function DashboardPage() {
             items={widgets.map(w => w.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-6">
+            <div className="flex flex-col space-y-6">
               {/* Projection Alert */}
               {(isEditMode || isWidgetVisible('projection-alert')) && (
                 <DraggableWidget
@@ -518,6 +524,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('projection-alert')}
                   label="Alerta de Projeção"
                   onToggleVisibility={() => toggleWidgetVisibility('projection-alert')}
+                  order={getWidgetOrder('projection-alert')}
                 >
                   <div className={`rounded-xl p-4 sm:p-6 border ${projectionColors.bg} ${projectionColors.border}`}>
                     <div className="flex items-start gap-3 sm:gap-4">
@@ -559,6 +566,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('financial-insights')}
                   label="Insights Financeiros"
                   onToggleVisibility={() => toggleWidgetVisibility('financial-insights')}
+                  order={getWidgetOrder('financial-insights')}
                 >
                   <div className="space-y-3">
                     {insights.map((insight, index) => {
@@ -634,6 +642,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('goal-progress')}
                   label="Progresso da Meta"
                   onToggleVisibility={() => toggleWidgetVisibility('goal-progress')}
+                  order={getWidgetOrder('goal-progress')}
                 >
                   <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-4">
@@ -762,6 +771,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('recent-transactions')}
                   label="Transações Recentes"
                   onToggleVisibility={() => toggleWidgetVisibility('recent-transactions')}
+                  order={getWidgetOrder('recent-transactions')}
                 >
                   <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
@@ -853,6 +863,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('upcoming-expenses')}
                   label="Próximos Gastos Fixos"
                   onToggleVisibility={() => toggleWidgetVisibility('upcoming-expenses')}
+                  order={getWidgetOrder('upcoming-expenses')}
                 >
                   <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
@@ -930,6 +941,7 @@ export default function DashboardPage() {
                   isVisible={isWidgetVisible('comparison')}
                   label="Comparativo do Período"
                   onToggleVisibility={() => toggleWidgetVisibility('comparison')}
+                  order={getWidgetOrder('comparison')}
                 >
                   <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-xl p-4 sm:p-6 border border-purple-200 dark:border-purple-800">
             <div className="flex items-center gap-3 mb-4">
@@ -994,6 +1006,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('income-stat')}
                     label="Receita Mensal"
                     onToggleVisibility={() => toggleWidgetVisibility('income-stat')}
+                    order={getWidgetOrder('income-stat')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
@@ -1028,6 +1041,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('fixed-expenses-stat')}
                     label="Gastos Fixos"
                     onToggleVisibility={() => toggleWidgetVisibility('fixed-expenses-stat')}
+                    order={getWidgetOrder('fixed-expenses-stat')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
@@ -1059,6 +1073,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('variable-expenses-stat')}
                     label="Gastos Variáveis"
                     onToggleVisibility={() => toggleWidgetVisibility('variable-expenses-stat')}
+                    order={getWidgetOrder('variable-expenses-stat')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
@@ -1090,6 +1105,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('balance-stat')}
                     label="Saldo do Mês"
                     onToggleVisibility={() => toggleWidgetVisibility('balance-stat')}
+                    order={getWidgetOrder('balance-stat')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-5 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center gap-3 mb-3">
@@ -1128,6 +1144,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('fixed-expenses-list')}
                     label="Lista de Gastos Fixos"
                     onToggleVisibility={() => toggleWidgetVisibility('fixed-expenses-list')}
+                    order={getWidgetOrder('fixed-expenses-list')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
@@ -1198,6 +1215,7 @@ export default function DashboardPage() {
                     isVisible={isWidgetVisible('variable-expenses-chart')}
                     label="Gastos por Categoria"
                     onToggleVisibility={() => toggleWidgetVisibility('variable-expenses-chart')}
+                    order={getWidgetOrder('variable-expenses-chart')}
                   >
                     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">

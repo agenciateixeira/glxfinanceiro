@@ -12,6 +12,7 @@ interface DraggableWidgetProps {
   isVisible: boolean
   label: string
   onToggleVisibility: () => void
+  order?: number
 }
 
 export function DraggableWidget({
@@ -21,6 +22,7 @@ export function DraggableWidget({
   isVisible,
   label,
   onToggleVisibility,
+  order,
 }: DraggableWidgetProps) {
   const {
     attributes,
@@ -35,6 +37,7 @@ export function DraggableWidget({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : isVisible ? 1 : 0.4,
+    order: order !== undefined ? order : 0,
   }
 
   // Se não estiver visível e não estiver em modo de edição, não renderiza
