@@ -327,7 +327,7 @@ export default function RecurringExpensesPage() {
           </div>
           <Button
             onClick={() => handleOpenModal()}
-            className="bg-primary-600 hover:bg-primary-700 text-white shrink-0"
+            className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white shrink-0"
           >
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Novo Gasto</span>
@@ -407,7 +407,7 @@ export default function RecurringExpensesPage() {
             </p>
             <Button
               onClick={() => handleOpenModal()}
-              className="bg-primary-600 hover:bg-primary-700 text-white"
+              className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
               Adicionar Primeiro Gasto
@@ -661,7 +661,7 @@ export default function RecurringExpensesPage() {
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 bg-primary-600 hover:bg-primary-700 text-white"
+                  className="flex-1 bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
                   disabled={saving}
                 >
                   {saving ? (
