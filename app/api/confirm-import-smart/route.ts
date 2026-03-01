@@ -26,7 +26,15 @@ export async function POST(request: NextRequest) {
 
     // Lê as transações classificadas
     const body = await request.json()
-    const { transactions } = body as { transactions: ClassifiedTransaction[] }
+    const { transactions, period } = body as {
+      transactions: ClassifiedTransaction[]
+      period?: {
+        start: string
+        end: string
+        type: 'monthly' | 'weekly' | 'custom'
+        label: string
+      }
+    }
 
     if (!transactions || transactions.length === 0) {
       return NextResponse.json(
@@ -36,6 +44,30 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Confirm Import Smart] Processing ${transactions.length} transactions`)
+
+    // Registra o período de importação
+    let importPeriodId: string | null = null
+    if (period) {
+      const { data: importPeriod, error: periodError } = await supabase
+        .from('import_periods')
+        .insert({
+          user_id: user.id,
+          start_date: period.start,
+          end_date: period.end,
+          type: period.type,
+          label: period.label,
+          transaction_count: transactions.length
+        })
+        .select()
+        .single()
+
+      if (periodError) {
+        console.error('[Confirm Import Smart] Error creating period:', periodError)
+      } else {
+        importPeriodId = importPeriod.id
+        console.log(`[Confirm Import Smart] Created import period: ${period.label}`)
+      }
+    }
 
     // Processa cada transação
     const results = []
@@ -85,7 +117,8 @@ export async function POST(request: NextRequest) {
           amount: transaction.amount,
           type: transaction.type,
           category_id: categoryId,
-          payment_method: 'debit' // Default
+          payment_method: 'debit', // Default
+          import_period_id: importPeriodId // Vincula ao período
         })
         .select()
         .single()

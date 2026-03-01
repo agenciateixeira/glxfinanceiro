@@ -86,10 +86,45 @@ export async function POST(request: NextRequest) {
     // Calcula totais
     const totalAmount = parseResult.transactions.reduce((sum, t) => sum + t.amount, 0)
 
-    // Detecta período
+    // Detecta período inteligente
     const dates = parseResult.transactions.map(t => t.date).sort()
-    const startDate = dates[0]
-    const endDate = dates[dates.length - 1]
+    const startDate = new Date(dates[0])
+    const endDate = new Date(dates[dates.length - 1])
+
+    // Calcula diferença em dias
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+
+    // Detecta tipo de período
+    let periodType: 'monthly' | 'weekly' | 'custom' = 'custom'
+    let periodLabel = ''
+
+    if (daysDiff >= 28 && daysDiff <= 31) {
+      // Período mensal
+      periodType = 'monthly'
+      const month = startDate.toLocaleString('pt-BR', { month: 'long' })
+      const year = startDate.getFullYear()
+      periodLabel = `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`
+    } else if (daysDiff >= 6 && daysDiff <= 8) {
+      // Período semanal
+      periodType = 'weekly'
+      const weekStart = startDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+      const weekEnd = endDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+      periodLabel = `${weekStart} a ${weekEnd}`
+    } else {
+      // Período customizado
+      periodLabel = `${startDate.toLocaleDateString('pt-BR')} a ${endDate.toLocaleDateString('pt-BR')}`
+    }
+
+    // Verifica se já existe período importado
+    const { data: existingPeriod } = await supabase
+      .from('import_periods')
+      .select('id, start_date, end_date, type')
+      .eq('user_id', user.id)
+      .eq('start_date', dates[0])
+      .eq('end_date', dates[dates.length - 1])
+      .maybeSingle()
+
+    const isDuplicate = !!existingPeriod
 
     return NextResponse.json({
       success: true,
@@ -99,11 +134,16 @@ export async function POST(request: NextRequest) {
         total_amount: totalAmount,
         format: parseResult.format,
         period: {
-          start: startDate,
-          end: endDate
+          start: dates[0],
+          end: dates[dates.length - 1],
+          type: periodType,
+          label: periodLabel,
+          days: daysDiff,
+          is_duplicate: isDuplicate
         },
         has_suggestions: Array.from(suggestions.values()).some(s => s.confidence > 0)
-      }
+      },
+      warning: isDuplicate ? `Você já importou transações do período ${periodLabel}` : null
     })
   } catch (error) {
     console.error('[Import Smart] Error:', error)
