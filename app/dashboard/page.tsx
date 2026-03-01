@@ -37,6 +37,12 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PeriodFilter, Period } from '@/components/dashboard/PeriodFilter'
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { useWidgetLayout } from '@/hooks/useWidgetLayout'
+import { DraggableWidget } from '@/components/dashboard/DraggableWidget'
+import { EditModeBar } from '@/components/dashboard/EditModeBar'
+import { Edit3 } from 'lucide-react'
 
 interface RecentTransaction {
   id: string
@@ -80,12 +86,57 @@ export default function DashboardPage() {
   })
   const [period, setPeriod] = useState<Period>('30d')
   const [loading, setLoading] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
+
+  // Hook para gerenciar layout dos widgets
+  const { widgets, isLoading: isLoadingLayout, updateWidgetOrder, toggleWidgetVisibility, resetToDefault } = useWidgetLayout(user?.id)
+
+  // Sensors para drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px de movimento antes de iniciar o drag
+      },
+    })
+  )
 
   useEffect(() => {
     if (user?.id) {
       loadDashboardData()
     }
   }, [user, period])
+
+  // Handlers do modo de edição
+  const handleEnterEditMode = () => setIsEditMode(true)
+  const handleExitEditMode = () => setIsEditMode(false)
+  const handleSaveLayout = () => {
+    setIsEditMode(false)
+    // O hook já salva automaticamente, não precisa fazer nada extra
+  }
+  const handleResetLayout = async () => {
+    await resetToDefault()
+  }
+
+  // Handler do drag and drop
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      const oldIndex = widgets.findIndex(w => w.id === active.id)
+      const newIndex = widgets.findIndex(w => w.id === over.id)
+
+      const newOrder = arrayMove(widgets, oldIndex, newIndex)
+      const widgetIds = newOrder.map(w => w.id)
+
+      updateWidgetOrder(widgetIds)
+    }
+  }
+
+  // Helper para verificar se widget está visível
+  const isWidgetVisible = (widgetId: string) => {
+    const widget = widgets.find(w => w.id === widgetId)
+    return widget?.isVisible ?? true
+  }
 
   const getDateFilter = () => {
     const now = new Date()
@@ -421,8 +472,32 @@ export default function DashboardPage() {
               Projeção financeira dos próximos 30 dias
             </p>
           </div>
-          <PeriodFilter value={period} onChange={setPeriod} />
+          <div className="flex items-center gap-2">
+            <PeriodFilter value={period} onChange={setPeriod} />
+            {!isEditMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnterEditMode}
+                className="h-9 px-3 border-gray-300 dark:border-gray-600"
+                title="Editar layout do dashboard"
+              >
+                <Edit3 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Edit Mode Bar */}
+        {isEditMode && (
+          <EditModeBar
+            onSave={handleSaveLayout}
+            onCancel={handleExitEditMode}
+            onReset={handleResetLayout}
+            hasChanges={true}
+          />
+        )}
 
         {/* Projection Alert */}
         <div className={`mb-6 rounded-xl p-4 sm:p-6 border ${projectionColors.bg} ${projectionColors.border}`}>
@@ -644,9 +719,26 @@ export default function DashboardPage() {
         )}
 
         {/* Widgets Grid - Recent Transactions & Upcoming Expenses */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Recent Transactions Widget */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={widgets.map(w => w.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-6 mb-6">
+              {/* Recent Transactions Widget */}
+              {(isEditMode || isWidgetVisible('recent-transactions')) && (
+                <DraggableWidget
+                  id="recent-transactions"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('recent-transactions')}
+                  label="Transações Recentes"
+                  onToggleVisibility={() => toggleWidgetVisibility('recent-transactions')}
+                >
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Clock className="h-5 w-5" />
@@ -725,9 +817,19 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+                </DraggableWidget>
+              )}
 
-          {/* Upcoming Expenses Widget */}
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+              {/* Upcoming Expenses Widget */}
+              {(isEditMode || isWidgetVisible('upcoming-expenses')) && (
+                <DraggableWidget
+                  id="upcoming-expenses"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('upcoming-expenses')}
+                  label="Próximos Gastos Fixos"
+                  onToggleVisibility={() => toggleWidgetVisibility('upcoming-expenses')}
+                >
+                  <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
@@ -792,7 +894,11 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </div>
+                </DraggableWidget>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {/* Monthly Comparison Summary */}
         {(monthlyComparison.incomeChange !== 0 || monthlyComparison.expensesChange !== 0) && (
