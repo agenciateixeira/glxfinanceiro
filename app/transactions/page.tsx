@@ -37,11 +37,13 @@ export default function TransactionsPage() {
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [itemsToShow, setItemsToShow] = useState(50)
   const [filters, setFilters] = useState<FilterState>({
     period: '30d',
     categoryIds: [],
     type: 'all'
   })
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
@@ -251,11 +253,23 @@ export default function TransactionsPage() {
     }
   }
 
+  // Filtra apenas por busca de texto (filtros de tipo e categoria já são aplicados na query)
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || t.type === filterType
-    return matchesSearch && matchesType
+    return t.description.toLowerCase().includes(searchTerm.toLowerCase())
   })
+
+  // Paginação
+  const displayedTransactions = filteredTransactions.slice(0, itemsToShow)
+  const hasMore = filteredTransactions.length > itemsToShow
+
+  const handleLoadMore = () => {
+    setItemsToShow(prev => prev + 50)
+  }
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setItemsToShow(50)
+  }, [filters, searchTerm])
 
   const totalIncome = transactions
     .filter(t => t.type === 'income')
@@ -266,6 +280,57 @@ export default function TransactionsPage() {
     .reduce((sum, t) => sum + Number(t.amount), 0)
 
   const balance = totalIncome - totalExpense
+
+  const handleExportCSV = () => {
+    if (filteredTransactions.length === 0) {
+      showToast('Nenhuma transação para exportar', 'info')
+      return
+    }
+
+    // Cabeçalhos do CSV
+    const headers = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Valor', 'Método de Pagamento', 'Status', 'Observações']
+
+    // Converte transações para linhas CSV
+    const rows = filteredTransactions.map(t => [
+      new Date(t.date).toLocaleDateString('pt-BR'),
+      `"${t.description.replace(/"/g, '""')}"`, // Escapa aspas
+      t.type === 'income' ? 'Receita' : 'Despesa',
+      t.category_name || 'Sem categoria',
+      `"R$ ${Number(t.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}"`,
+      t.payment_method === 'credit_card' ? 'Cartão de Crédito' :
+      t.payment_method === 'debit_card' ? 'Cartão de Débito' :
+      t.payment_method === 'cash' ? 'Dinheiro' :
+      t.payment_method === 'pix' ? 'PIX' :
+      t.payment_method === 'bank_transfer' ? 'Transferência' : 'Outro',
+      t.status === 'completed' ? 'Concluída' :
+      t.status === 'pending' ? 'Pendente' : 'Cancelada',
+      t.notes ? `"${t.notes.replace(/"/g, '""')}"` : ''
+    ])
+
+    // Monta o CSV
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n')
+
+    // Adiciona BOM para UTF-8 (ajuda Excel a reconhecer acentos)
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+
+    // Cria link para download
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    const fileName = `transacoes_${new Date().toISOString().split('T')[0]}.csv`
+
+    link.setAttribute('href', url)
+    link.setAttribute('download', fileName)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    showToast(`${filteredTransactions.length} transação(ões) exportada(s)`, 'success')
+  }
 
   return (
     <DashboardLayout>
@@ -281,49 +346,60 @@ export default function TransactionsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a]">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Receitas</p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-[#2a2a2a]">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 truncate">Receitas</p>
+            <p className="text-lg sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 truncate">
+              R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a]">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Despesas</p>
-            <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
-              R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-[#2a2a2a]">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 truncate">Despesas</p>
+            <p className="text-lg sm:text-2xl font-bold text-rose-600 dark:text-rose-400 truncate">
+              R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a]">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Saldo</p>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-[#2a2a2a]">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1 truncate">Saldo</p>
+            <p className={`text-lg sm:text-2xl font-bold truncate ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
-        </div>
-
-        {/* Filtros */}
-        <div className="mb-6">
-          <TransactionFilters
-            categories={categories}
-            onFilterChange={setFilters}
-            currentFilters={filters}
-          />
         </div>
 
         {/* Actions Bar */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a] mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar transações..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
-              />
+            {/* Search with Filter Icon */}
+            <div className="flex-1 flex gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar transações..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
+                />
+              </div>
+              {/* Filter Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className={`relative border-gray-200 dark:border-[#2a2a2a] ${
+                  (filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d')
+                    ? 'bg-[#D4C5B9]/10 border-[#D4C5B9]'
+                    : ''
+                }`}
+                onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
+              >
+                <Filter className="h-5 w-5" />
+                {(filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d') && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-[#D4C5B9] text-white text-xs rounded-full flex items-center justify-center">
+                    {filters.categoryIds.length + (filters.type !== 'all' ? 1 : 0) + (filters.period !== '30d' ? 1 : 0)}
+                  </span>
+                )}
+              </Button>
             </div>
 
             {/* Action Buttons */}
@@ -331,21 +407,43 @@ export default function TransactionsPage() {
               <Button
                 variant="outline"
                 className="border-gray-200 dark:border-[#2a2a2a]"
+                onClick={handleExportCSV}
+                disabled={filteredTransactions.length === 0}
+                title="Exportar transações para CSV"
+              >
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline sm:ml-2">Exportar</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="border-gray-200 dark:border-[#2a2a2a]"
                 onClick={() => setIsImportPDFModalOpen(true)}
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Importar
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline sm:ml-2">Importar</span>
               </Button>
               <Button
                 className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
                 onClick={() => setIsAddModalOpen(true)}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline sm:ml-2">Nova</span>
               </Button>
             </div>
           </div>
         </div>
+
+        {/* Filter Drawer */}
+        {isFilterDrawerOpen && (
+          <div className="mb-6">
+            <TransactionFilters
+              categories={categories}
+              onFilterChange={setFilters}
+              currentFilters={filters}
+              onClose={() => setIsFilterDrawerOpen(false)}
+            />
+          </div>
+        )}
 
         {/* Transactions List */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-[#2a2a2a] overflow-hidden">
@@ -355,113 +453,244 @@ export default function TransactionsPage() {
               <p className="text-gray-600 dark:text-gray-400">Carregando transações...</p>
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-[#2a2a2a] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Plus className="h-8 w-8 text-gray-400" />
+            <div className="p-8 sm:p-12 text-center">
+              {/* Ícone ilustrativo */}
+              <div className="relative mx-auto mb-6 w-20 h-20 sm:w-24 sm:h-24">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#D4C5B9]/20 to-[#D4C5B9]/5 rounded-full blur-xl"></div>
+                <div className="relative w-full h-full bg-gradient-to-br from-[#D4C5B9] to-[#C4B5A9] rounded-full flex items-center justify-center shadow-lg">
+                  <Plus className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                Nenhuma transação encontrada
+
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                {searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all'
+                  ? 'Nenhuma transação encontrada'
+                  : 'Comece a gerenciar suas finanças'}
               </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Comece adicionando sua primeira transação ou importe um extrato
+
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                {searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all'
+                  ? 'Tente ajustar os filtros ou buscar por outros termos'
+                  : 'Adicione transações manualmente ou importe um extrato bancário para começar a ter controle total'}
               </p>
-              <div className="flex gap-3 justify-center">
-                <Button
-                  variant="outline"
-                  className="border-gray-200 dark:border-[#2a2a2a]"
-                  onClick={() => setIsImportPDFModalOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar Extrato
-                </Button>
-                <Button
-                  className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
-                  onClick={() => setIsAddModalOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Transação
-                </Button>
-              </div>
+
+              {!(searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all') && (
+                <>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+                    <Button
+                      variant="outline"
+                      className="border-gray-200 dark:border-[#2a2a2a]"
+                      onClick={() => setIsImportPDFModalOpen(true)}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar Extrato
+                    </Button>
+                    <Button
+                      className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
+                      onClick={() => setIsAddModalOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Transação
+                    </Button>
+                  </div>
+
+                  {/* Dicas úteis */}
+                  <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
+                      <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-950/30 rounded-lg flex items-center justify-center mb-3">
+                        <Upload className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Importe extratos
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Suportamos PDFs de diversos bancos
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-950/30 rounded-lg flex items-center justify-center mb-3">
+                        <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Filtre e organize
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Use filtros avançados para análise
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-950/30 rounded-lg flex items-center justify-center mb-3">
+                        <Download className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        Exporte dados
+                      </h4>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Baixe seus dados em CSV
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-[#2a2a2a]/50 border-b border-gray-200 dark:border-[#2a2a2a]">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Data
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Descrição
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Categoria
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Tipo
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Valor
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
-                  {filteredTransactions.map((transaction) => (
-                    <tr
-                      key={transaction.id}
-                      onClick={() => handleRowClick(transaction)}
-                      className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a]/30 transition-colors cursor-pointer"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(transaction.date).toLocaleDateString('pt-BR')}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
-                        {transaction.description}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {transaction.category_name ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-[#2a2a2a]/50 border-b border-gray-200 dark:border-[#2a2a2a]">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Data
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Descrição
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Categoria
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+                    {displayedTransactions.map((transaction) => (
+                      <tr
+                        key={transaction.id}
+                        onClick={() => handleRowClick(transaction)}
+                        className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a]/30 transition-colors cursor-pointer"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                          {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                          {transaction.description}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {transaction.category_name ? (
+                            <span
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                              style={{
+                                backgroundColor: `${transaction.category_color}20`,
+                                color: transaction.category_color,
+                              }}
+                            >
+                              {transaction.category_name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500">Sem categoria</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            style={{
-                              backgroundColor: `${transaction.category_color}20`,
-                              color: transaction.category_color,
-                            }}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              transaction.type === 'income'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                                : 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
+                            }`}
                           >
-                            {transaction.category_name}
+                            {transaction.type === 'income' ? 'Receita' : 'Despesa'}
                           </span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-gray-500">Sem categoria</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            transaction.type === 'income'
-                              ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
-                              : 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
-                          }`}
-                        >
-                          {transaction.type === 'income' ? 'Receita' : 'Despesa'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
-                        <span
-                          className={
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                          <span
+                            className={
+                              transaction.type === 'income'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }
+                          >
+                            {transaction.type === 'income' ? '+' : '-'} R${' '}
+                            {Number(transaction.amount).toLocaleString('pt-BR', {
+                              minimumFractionDigits: 2,
+                            })}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden divide-y divide-gray-200 dark:divide-[#2a2a2a]">
+                {displayedTransactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    onClick={() => handleRowClick(transaction)}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]/30 transition-colors cursor-pointer active:bg-gray-100 dark:active:bg-[#2a2a2a]/50"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {transaction.description}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p
+                          className={`text-sm font-semibold ${
                             transaction.type === 'income'
                               ? 'text-emerald-600 dark:text-emerald-400'
                               : 'text-rose-600 dark:text-rose-400'
-                          }
+                          }`}
                         >
                           {transaction.type === 'income' ? '+' : '-'} R${' '}
                           {Number(transaction.amount).toLocaleString('pt-BR', {
                             minimumFractionDigits: 2,
                           })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {transaction.category_name && (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{
+                            backgroundColor: `${transaction.category_color}20`,
+                            color: transaction.category_color,
+                          }}
+                        >
+                          {transaction.category_icon} {transaction.category_name}
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      )}
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          transaction.type === 'income'
+                            ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400'
+                            : 'bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400'
+                        }`}
+                      >
+                        {transaction.type === 'income' ? 'Receita' : 'Despesa'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Load More Button */}
+          {hasMore && !loading && filteredTransactions.length > 0 && (
+            <div className="p-6 border-t border-gray-200 dark:border-[#2a2a2a] flex flex-col items-center gap-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Mostrando {displayedTransactions.length} de {filteredTransactions.length} transações
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleLoadMore}
+                className="border-gray-200 dark:border-[#2a2a2a]"
+              >
+                Carregar mais
+              </Button>
             </div>
           )}
         </div>

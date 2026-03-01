@@ -108,7 +108,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
         {/* Backdrop */}
         <div
           className="absolute inset-0 bg-black/50 animate-in fade-in duration-200"
@@ -117,12 +117,12 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
 
         {/* Modal */}
         <div
-          className="relative bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200 z-10"
+          className="relative bg-white dark:bg-[#1a1a1a] rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 z-10"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-[#2a2a2a]">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-[#2a2a2a] sticky top-0 bg-white dark:bg-[#1a1a1a] z-10">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
               Nova Transação
             </h2>
             <button
@@ -134,7 +134,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
             {/* Type Toggle */}
             <div className="flex gap-2 p-1 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg">
               <button
@@ -143,13 +143,13 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
                   setType('expense')
                   setCategoryId('')
                 }}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   type === 'expense'
                     ? 'bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
-                💸 Despesa
+                <span className="hidden sm:inline">💸 </span>Despesa
               </button>
               <button
                 type="button"
@@ -157,13 +157,13 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
                   setType('income')
                   setCategoryId('')
                 }}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`flex-1 py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all ${
                   type === 'income'
                     ? 'bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-600 dark:text-gray-400'
                 }`}
               >
-                💰 Receita
+                <span className="hidden sm:inline">💰 </span>Receita
               </button>
             </div>
 

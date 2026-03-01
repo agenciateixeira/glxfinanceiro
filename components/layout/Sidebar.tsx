@@ -23,11 +23,20 @@ interface NavItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  subItems?: NavItem[]
 }
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Transações', href: '/transactions', icon: ArrowLeftRight },
+  {
+    name: 'Transações',
+    href: '/transactions',
+    icon: ArrowLeftRight,
+    subItems: [
+      { name: 'Listar Transações', href: '/transactions', icon: ArrowLeftRight },
+      { name: 'Configurações Financeiras', href: '/transactions/settings', icon: Settings },
+    ]
+  },
   { name: 'Categorias', href: '/categories', icon: FolderOpen },
   { name: 'Metas', href: '/goals', icon: Target },
 ]
@@ -36,8 +45,13 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({})
   const [userName, setUserName] = useState<string | null>(null)
   const supabase = createClient()
+
+  const toggleSubmenu = (itemName: string) => {
+    setOpenSubmenus(prev => ({ ...prev, [itemName]: !prev[itemName] }))
+  }
 
   // Buscar nome do usuário
   useEffect(() => {
@@ -57,6 +71,15 @@ export function Sidebar() {
 
     fetchUserName()
   }, [user?.id])
+
+  // Abrir submenu automaticamente se estiver em uma das páginas do submenu
+  useEffect(() => {
+    navigation.forEach(item => {
+      if (item.subItems && item.subItems.some(sub => pathname === sub.href)) {
+        setOpenSubmenus(prev => ({ ...prev, [item.name]: true }))
+      }
+    })
+  }, [pathname])
 
   // Pegar iniciais do nome do usuário
   const getInitials = () => {
@@ -100,28 +123,84 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col px-4 py-6 space-y-1">
+      <nav className="flex-1 flex flex-col px-4 py-6 space-y-1 overflow-y-auto">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || (item.subItems && item.subItems.some(sub => pathname === sub.href))
+          const isSubmenuOpen = openSubmenus[item.name]
           const Icon = item.icon
 
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`
-                group flex items-center gap-3 px-4 py-3 rounded-xl
-                transition-all duration-200 font-medium
-                ${
-                  isActive
-                    ? 'bg-[#D4C5B9] text-white'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-[#E8DDD2] dark:hover:bg-[#2a2a2a] hover:text-gray-900 dark:hover:text-gray-100'
-                }
-              `}
-            >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="text-sm">{item.name}</span>
-            </Link>
+            <div key={item.name}>
+              {item.subItems ? (
+                <>
+                  {/* Item com submenu */}
+                  <button
+                    onClick={() => toggleSubmenu(item.name)}
+                    className={`
+                      group w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl
+                      transition-all duration-200 font-medium
+                      ${
+                        isActive
+                          ? 'bg-[#D4C5B9] text-white'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-[#E8DDD2] dark:hover:bg-[#2a2a2a] hover:text-gray-900 dark:hover:text-gray-100'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      <span className="text-sm">{item.name}</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Submenu */}
+                  {isSubmenuOpen && (
+                    <div className="mt-1 ml-4 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const SubIcon = subItem.icon
+                        const isSubActive = pathname === subItem.href
+
+                        return (
+                          <Link
+                            key={subItem.name}
+                            href={subItem.href}
+                            className={`
+                              group flex items-center gap-3 px-4 py-2.5 rounded-lg
+                              transition-all duration-200 text-sm
+                              ${
+                                isSubActive
+                                  ? 'bg-[#E8DDD2] dark:bg-[#2a2a2a] text-[#D4C5B9] font-medium'
+                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2a2a2a]/50 hover:text-gray-900 dark:hover:text-gray-100'
+                              }
+                            `}
+                          >
+                            <SubIcon className="w-4 h-4 flex-shrink-0" />
+                            <span>{subItem.name}</span>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Item sem submenu */
+                <Link
+                  href={item.href}
+                  className={`
+                    group flex items-center gap-3 px-4 py-3 rounded-xl
+                    transition-all duration-200 font-medium
+                    ${
+                      isActive
+                        ? 'bg-[#D4C5B9] text-white'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-[#E8DDD2] dark:hover:bg-[#2a2a2a] hover:text-gray-900 dark:hover:text-gray-100'
+                    }
+                  `}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">{item.name}</span>
+                </Link>
+              )}
+            </div>
           )
         })}
       </nav>

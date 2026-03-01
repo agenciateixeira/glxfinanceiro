@@ -16,6 +16,7 @@ interface TransactionFiltersProps {
   categories: Category[]
   onFilterChange: (filters: FilterState) => void
   currentFilters: FilterState
+  onClose?: () => void
 }
 
 export interface FilterState {
@@ -34,7 +35,7 @@ const PERIOD_OPTIONS = [
   { value: 'all', label: 'Todos' }
 ]
 
-export function TransactionFilters({ categories, onFilterChange, currentFilters }: TransactionFiltersProps) {
+export function TransactionFilters({ categories, onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [localFilters, setLocalFilters] = useState<FilterState>(currentFilters)
 
@@ -79,7 +80,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
   const expenseCategories = categories.filter(c => c.type === 'expense')
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-xl p-4 space-y-4">
+    <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-[#2a2a2a] rounded-xl p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -89,7 +90,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
           </h3>
           {hasActiveFilters && (
             <span className="px-2 py-0.5 bg-[#D4C5B9] text-white text-xs rounded-full">
-              {localFilters.categoryIds.length + (localFilters.type !== 'all' ? 1 : 0)}
+              {localFilters.categoryIds.length + (localFilters.type !== 'all' ? 1 : 0) + (localFilters.period !== '30d' ? 1 : 0)}
             </span>
           )}
         </div>
@@ -114,21 +115,31 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
             Avançado
             <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
           </Button>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-xs"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Período */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
-          Período
+          <Calendar className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">Período</span>
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {PERIOD_OPTIONS.map(option => (
             <button
               key={option.value}
               onClick={() => handlePeriodChange(option.value as FilterState['period'])}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                 localFilters.period === option.value
                   ? 'bg-[#D4C5B9] text-white shadow-sm'
                   : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
@@ -145,10 +156,10 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
         <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-[#2a2a2a]">
           {/* Tipo de Transação */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
               Tipo de Transação
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { value: 'all', label: 'Todas' },
                 { value: 'income', label: 'Receitas' },
@@ -157,7 +168,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                 <button
                   key={option.value}
                   onClick={() => handleTypeChange(option.value as FilterState['type'])}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
                     localFilters.type === option.value
                       ? option.value === 'income'
                         ? 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-500'
@@ -167,7 +178,8 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                       : 'bg-gray-100 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#3a3a3a] border-2 border-transparent'
                   }`}
                 >
-                  {option.label}
+                  <span className="hidden sm:inline">{option.label}</span>
+                  <span className="sm:hidden">{option.value === 'all' ? 'Todas' : option.value === 'income' ? 'Rec.' : 'Desp.'}</span>
                 </button>
               ))}
             </div>
@@ -184,7 +196,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                   <button
                     key={category.id}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 sm:gap-1.5 min-h-[44px] ${
                       localFilters.categoryIds.includes(category.id)
                         ? 'ring-2 ring-offset-2 dark:ring-offset-[#1a1a1a]'
                         : 'opacity-60 hover:opacity-100'
@@ -197,8 +209,8 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                       ringColor: category.color
                     }}
                   >
-                    <span>{category.icon}</span>
-                    <span>{category.name}</span>
+                    <span className="flex-shrink-0">{category.icon}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none">{category.name}</span>
                   </button>
                 ))}
               </div>
@@ -216,7 +228,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                   <button
                     key={category.id}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 sm:gap-1.5 min-h-[44px] ${
                       localFilters.categoryIds.includes(category.id)
                         ? 'ring-2 ring-offset-2 dark:ring-offset-[#1a1a1a]'
                         : 'opacity-60 hover:opacity-100'
@@ -229,8 +241,8 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters 
                       ringColor: category.color
                     }}
                   >
-                    <span>{category.icon}</span>
-                    <span>{category.name}</span>
+                    <span className="flex-shrink-0">{category.icon}</span>
+                    <span className="truncate max-w-[100px] sm:max-w-none">{category.name}</span>
                   </button>
                 ))}
               </div>

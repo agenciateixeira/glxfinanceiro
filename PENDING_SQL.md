@@ -1,6 +1,6 @@
 # SQL Pendente para Execução
 
-Execute os seguintes comandos SQL no Supabase para completar a funcionalidade de detecção de período:
+Execute os seguintes comandos SQL no Supabase:
 
 ## 1. Criar tabela de períodos importados
 
@@ -12,6 +12,18 @@ Execute os seguintes comandos SQL no Supabase para completar a funcionalidade de
 
 ```sql
 -- Execute: lib/sql/add_import_period_to_transactions.sql
+```
+
+## 3. Criar tabela de configurações financeiras (Casal)
+
+```sql
+-- Execute: lib/sql/financial_settings.sql
+```
+
+## 4. Criar tabela de gastos fixos recorrentes
+
+```sql
+-- Execute: lib/sql/recurring_expenses.sql
 ```
 
 ## Como executar:
