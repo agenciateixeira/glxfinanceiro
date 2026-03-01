@@ -36,6 +36,7 @@ import {
   CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { PeriodFilter, Period } from '@/components/dashboard/PeriodFilter'
 
 interface RecentTransaction {
   id: string
@@ -77,13 +78,33 @@ export default function DashboardPage() {
     expensesChange: 0,
     balanceChange: 0,
   })
+  const [period, setPeriod] = useState<Period>('30d')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user?.id) {
       loadDashboardData()
     }
-  }, [user])
+  }, [user, period])
+
+  const getDateFilter = () => {
+    const now = new Date()
+    const periodMap = {
+      '7d': 7,
+      '15d': 15,
+      '30d': 30,
+      '90d': 90
+    }
+
+    if (period === 'all') {
+      return null
+    }
+
+    const days = periodMap[period as keyof typeof periodMap]
+    const date = new Date(now)
+    date.setDate(date.getDate() - days)
+    return date.toISOString().split('T')[0]
+  }
 
   const loadDashboardData = async () => {
     if (!user?.id) return
@@ -114,7 +135,8 @@ export default function DashboardPage() {
       }
 
       // Buscar transações recentes
-      const { data: transactions } = await supabase
+      const dateFilter = getDateFilter()
+      let transactionsQuery = supabase
         .from('transactions')
         .select(`
           id,
@@ -129,6 +151,12 @@ export default function DashboardPage() {
           )
         `)
         .eq('user_id', user.id)
+
+      if (dateFilter) {
+        transactionsQuery = transactionsQuery.gte('date', dateFilter)
+      }
+
+      const { data: transactions } = await transactionsQuery
         .order('date', { ascending: false })
         .limit(5)
 
@@ -190,34 +218,58 @@ export default function DashboardPage() {
         setUpcomingExpenses(upcomingList)
       }
 
-      // Calcular comparação mensal
+      // Calcular comparação baseada no período selecionado
       const now = new Date()
-      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+      const currentPeriodStart = dateFilter ? new Date(dateFilter) : null
 
-      // Transações do mês atual
-      const { data: currentMonthTransactions } = await supabase
+      let lastPeriodStart: Date | null = null
+      let lastPeriodEnd: Date | null = null
+
+      if (period !== 'all' && currentPeriodStart) {
+        const periodMap = { '7d': 7, '15d': 15, '30d': 30, '90d': 90 }
+        const days = periodMap[period as keyof typeof periodMap]
+
+        lastPeriodEnd = new Date(currentPeriodStart)
+        lastPeriodEnd.setDate(lastPeriodEnd.getDate() - 1)
+
+        lastPeriodStart = new Date(lastPeriodEnd)
+        lastPeriodStart.setDate(lastPeriodStart.getDate() - days + 1)
+      }
+
+      // Transações do período atual
+      let currentQuery = supabase
         .from('transactions')
         .select('amount, type')
         .eq('user_id', user.id)
-        .gte('date', currentMonthStart.toISOString())
-        .lte('date', now.toISOString())
 
-      // Transações do mês anterior
-      const { data: lastMonthTransactions } = await supabase
+      if (currentPeriodStart) {
+        currentQuery = currentQuery
+          .gte('date', currentPeriodStart.toISOString())
+          .lte('date', now.toISOString())
+      }
+
+      const { data: currentPeriodTransactions } = await currentQuery
+
+      // Transações do período anterior
+      let lastQuery = supabase
         .from('transactions')
         .select('amount, type')
         .eq('user_id', user.id)
-        .gte('date', lastMonthStart.toISOString())
-        .lte('date', lastMonthEnd.toISOString())
 
-      const currentIncome = currentMonthTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
-      const currentExpenses = currentMonthTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
+      if (lastPeriodStart && lastPeriodEnd) {
+        lastQuery = lastQuery
+          .gte('date', lastPeriodStart.toISOString())
+          .lte('date', lastPeriodEnd.toISOString())
+      }
+
+      const { data: lastPeriodTransactions } = await lastQuery
+
+      const currentIncome = currentPeriodTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
+      const currentExpenses = currentPeriodTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
       const currentBalance = currentIncome - currentExpenses
 
-      const lastIncome = lastMonthTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
-      const lastExpenses = lastMonthTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
+      const lastIncome = lastPeriodTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
+      const lastExpenses = lastPeriodTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
       const lastBalance = lastIncome - lastExpenses
 
       const incomeChange = lastIncome > 0 ? ((currentIncome - lastIncome) / lastIncome) * 100 : 0
@@ -360,13 +412,16 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-            Projeção financeira dos próximos 30 dias
-          </p>
+        <div className="mb-6 sm:mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              Dashboard
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+              Projeção financeira dos próximos 30 dias
+            </p>
+          </div>
+          <PeriodFilter value={period} onChange={setPeriod} />
         </div>
 
         {/* Projection Alert */}
@@ -748,10 +803,10 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  Comparativo Mensal
+                  Comparativo do Período
                 </h3>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Mudanças em relação ao mês anterior
+                  Mudanças em relação ao período anterior
                 </p>
               </div>
             </div>
@@ -764,7 +819,7 @@ export default function DashboardPage() {
                   <PercentageIndicator value={monthlyComparison.incomeChange} />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  {monthlyComparison.incomeChange > 0 ? 'Aumento' : monthlyComparison.incomeChange < 0 ? 'Redução' : 'Estável'} em relação ao mês anterior
+                  {monthlyComparison.incomeChange > 0 ? 'Aumento' : monthlyComparison.incomeChange < 0 ? 'Redução' : 'Estável'} em relação ao período anterior
                 </p>
               </div>
 
@@ -775,7 +830,7 @@ export default function DashboardPage() {
                   <PercentageIndicator value={monthlyComparison.expensesChange} inverse />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  {monthlyComparison.expensesChange > 0 ? 'Aumento' : monthlyComparison.expensesChange < 0 ? 'Redução' : 'Estável'} nos gastos totais
+                  {monthlyComparison.expensesChange > 0 ? 'Aumento' : monthlyComparison.expensesChange < 0 ? 'Redução' : 'Estável'} nos gastos do período
                 </p>
               </div>
 
@@ -786,7 +841,7 @@ export default function DashboardPage() {
                   <PercentageIndicator value={monthlyComparison.balanceChange} />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  {monthlyComparison.balanceChange > 0 ? 'Melhora' : monthlyComparison.balanceChange < 0 ? 'Piora' : 'Mantido'} no resultado final
+                  {monthlyComparison.balanceChange > 0 ? 'Melhora' : monthlyComparison.balanceChange < 0 ? 'Piora' : 'Mantido'} no saldo
                 </p>
               </div>
             </div>
