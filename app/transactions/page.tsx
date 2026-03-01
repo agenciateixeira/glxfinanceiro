@@ -454,14 +454,6 @@ export default function TransactionsPage() {
             </div>
           ) : filteredTransactions.length === 0 ? (
             <div className="p-8 sm:p-12 text-center">
-              {/* Ícone ilustrativo */}
-              <div className="relative mx-auto mb-6 w-20 h-20 sm:w-24 sm:h-24">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#D4C5B9]/20 to-[#D4C5B9]/5 rounded-full blur-xl"></div>
-                <div className="relative w-full h-full bg-gradient-to-br from-[#D4C5B9] to-[#C4B5A9] rounded-full flex items-center justify-center shadow-lg">
-                  <Plus className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
-                </div>
-              </div>
-
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all'
                   ? 'Nenhuma transação encontrada'
