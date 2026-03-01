@@ -76,40 +76,50 @@ function normalizeDate(value: any): string {
 /**
  * Detecta se é receita ou despesa baseado em indicadores
  */
-function detectType(row: any): 'income' | 'expense' {
+function detectType(row: any, amount: number): 'income' | 'expense' {
+  // Primeiro, verifica o VALOR - se é negativo, é despesa
+  const amountStr = String(row.Valor || row.valor || row.amount || row.valor_transacao || '')
+  if (amountStr.trim().startsWith('-') || amount < 0) {
+    return 'expense'
+  }
+
+  // Se o valor é positivo, verifica a descrição
   const rowStr = JSON.stringify(row).toLowerCase()
+
+  // Indicadores FORTES de despesa (mesmo com valor positivo)
+  if (
+    rowStr.includes('compra no') ||
+    rowStr.includes('transferencia enviada') ||
+    rowStr.includes('transferência enviada') ||
+    rowStr.includes('pix enviado') ||
+    rowStr.includes('pagamento de fatura') ||
+    rowStr.includes('resgate de emprestimo') ||
+    rowStr.includes('recarga de celular')
+  ) {
+    return 'expense'
+  }
 
   // Indicadores de receita
   if (
-    rowStr.includes('credito') ||
-    rowStr.includes('deposito') ||
+    rowStr.includes('transferencia recebida') ||
+    rowStr.includes('transferência recebida') ||
+    rowStr.includes('pix recebido') ||
     rowStr.includes('recebido') ||
-    rowStr.includes('entrada') ||
+    rowStr.includes('deposito de emprestimo') ||
+    rowStr.includes('depósito de empréstimo') ||
+    rowStr.includes('reembolso') ||
     rowStr.includes('salario') ||
-    rowStr.includes('receita')
+    rowStr.includes('rendimento')
   ) {
     return 'income'
   }
 
-  // Indicadores de despesa
-  if (
-    rowStr.includes('debito') ||
-    rowStr.includes('saque') ||
-    rowStr.includes('pagamento') ||
-    rowStr.includes('compra') ||
-    rowStr.includes('saida') ||
-    rowStr.includes('despesa')
-  ) {
-    return 'expense'
+  // Se tem sinal positivo explícito, é receita
+  if (amountStr.includes('+')) {
+    return 'income'
   }
 
-  // Verifica sinal negativo em valores
-  const amountStr = String(row.valor || row.amount || row.valor_transacao || '')
-  if (amountStr.includes('-')) {
-    return 'expense'
-  }
-
-  // Default: despesa (mais comum em extratos)
+  // Default: se valor é positivo e não identificou, considera despesa
   return 'expense'
 }
 
@@ -208,14 +218,36 @@ function parseCSVRows(rows: any[]): ParsedTransaction[] {
   return rows
     .filter(row => {
       // Filtra linhas vazias ou sem valor
-      const amount = row[headers[columns.amount]]
-      return amount && normalizeAmount(amount) > 0
+      const amountValue = row[headers[columns.amount]]
+      if (!amountValue) return false
+
+      // Pega o valor bruto (pode ser negativo)
+      const amountStr = String(amountValue).trim()
+      const rawAmount = parseFloat(
+        amountStr
+          .replace(/[^\d,.-]/g, '')
+          .replace(/\./g, '')
+          .replace(',', '.')
+      )
+
+      return !isNaN(rawAmount) && rawAmount !== 0
     })
     .map(row => {
       const date = normalizeDate(row[headers[columns.date]] || new Date())
       const description = String(row[headers[columns.description]] || 'Transação')
-      const amount = normalizeAmount(row[headers[columns.amount]] || 0)
-      const type = detectType(row)
+
+      // Pega o valor bruto COM sinal
+      const amountValue = row[headers[columns.amount]]
+      const amountStr = String(amountValue).trim()
+      const rawAmount = parseFloat(
+        amountStr
+          .replace(/[^\d,.-]/g, '')
+          .replace(/\./g, '')
+          .replace(',', '.')
+      )
+
+      const amount = Math.abs(rawAmount)
+      const type = detectType(row, rawAmount)
       const category = columns.category >= 0
         ? row[headers[columns.category]]
         : extractCategory(description)
@@ -339,14 +371,23 @@ function extractTransactionFromObject(obj: any): ParsedTransaction | null {
 
   if (!amountKey) return null
 
-  const amount = normalizeAmount(obj[amountKey])
-  if (amount === 0) return null
+  const rawAmountStr = String(obj[amountKey])
+  const rawAmount = parseFloat(
+    rawAmountStr
+      .replace(/[^\d,.-]/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.')
+  )
+
+  if (isNaN(rawAmount) || rawAmount === 0) return null
+
+  const amount = Math.abs(rawAmount)
 
   return {
     date: dateKey ? normalizeDate(obj[dateKey]) : normalizeDate(new Date()),
     description: descKey ? String(obj[descKey]).trim() : 'Transação',
     amount,
-    type: detectType(obj),
+    type: detectType(obj, rawAmount),
     category: descKey ? extractCategory(String(obj[descKey])) : undefined
   }
 }

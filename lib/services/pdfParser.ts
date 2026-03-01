@@ -21,12 +21,15 @@ export interface ParseResult {
  * Patterns regex para diferentes formatos de bancos brasileiros
  */
 const BANK_PATTERNS = {
-  // Nubank
+  // Nubank (Novo formato 2026)
   nubank: {
     name: 'Nubank',
-    // Exemplo: 15 JAN Coffee Shop - R$ 25,50
-    pattern: /(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+([^\n]+?)\s+R?\$?\s*([\d.]+,\d{2})/gi,
-    dateFormat: 'DD MMM'
+    // Captura transações no formato: "Descrição ... VALOR"
+    // Exemplos:
+    // "Transferência recebida pelo Pix SILVANA... 60,00"
+    // "Compra no débito COM DE COMB RUY RODRIG 50,00"
+    pattern: /(Transferência\s+(?:recebida|enviada)|Transferencia\s+(?:Recebida|Enviada)|Compra\s+no\s+débito(?:\s+via\s+NuPay)?|Pagamento\s+de\s+fatura|Resgate\s+de\s+empréstimo|Recarga\s+de\s+celular|Depósito\s+de\s+empréstimo|Reembolso\s+recebido\s+pelo\s+Pix|Valor\s+adicionado\s+na\s+conta)\s+([^\d]+?)\s+([\d.]+,\d{2})/gi,
+    dateFormat: 'DD/MM/YYYY'
   },
 
   // Itaú
@@ -253,6 +256,71 @@ function extractYear(text: string): number | undefined {
 }
 
 /**
+ * Parser específico para Nubank (formato 2026)
+ * O PDF do Nubank tem formato: DD JAN 2026 seguido das transações do dia
+ */
+function parseNubankPDF(text: string, currentYear?: number): ParsedTransaction[] {
+  const transactions: ParsedTransaction[] = []
+
+  // Separa o PDF em blocos por data
+  // Formato: "03 JAN 2026" ou "05 JAN 2026"
+  const dateBlockPattern = /(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/gi
+
+  const lines = text.split('\n')
+  let currentDate: string | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+
+    // Verifica se é uma linha de data
+    const dateMatch = line.match(/^(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/)
+    if (dateMatch) {
+      const day = dateMatch[1]
+      const month = MONTH_MAP[dateMatch[2].toUpperCase()]
+      const year = dateMatch[3]
+      currentDate = `${year}-${month}-${day.padStart(2, '0')}`
+      continue
+    }
+
+    // Ignora linhas que não são transações
+    if (!line || line.includes('Total de entradas') || line.includes('Total de saídas') ||
+        line.includes('Saldo') || line.includes('Tem alguma dúvida')) {
+      continue
+    }
+
+    // Tenta capturar transação na linha
+    const transactionPattern = /(Transferência\s+(?:recebida|enviada)|Transferencia\s+(?:Recebida|Enviada)|Compra\s+no\s+débito(?:\s+via\s+NuPay)?|Pagamento\s+de\s+fatura|Resgate\s+de\s+empréstimo|Recarga\s+de\s+celular|Depósito\s+de\s+empréstimo|Reembolso\s+recebido\s+pelo\s+Pix|Valor\s+adicionado\s+na\s+conta)\s+(.+?)\s+([\d.]+,\d{2})$/i
+
+    const match = line.match(transactionPattern)
+    if (match && currentDate) {
+      const transactionType = match[1]
+      const description = cleanDescription(`${transactionType} ${match[2]}`)
+      const amount = parseBrazilianNumber(match[3])
+
+      // Detecta tipo
+      let type: 'income' | 'expense' = 'expense'
+      if (transactionType.toLowerCase().includes('recebid') ||
+          transactionType.toLowerCase().includes('deposito de emprestimo') ||
+          transactionType.toLowerCase().includes('reembolso')) {
+        type = 'income'
+      }
+
+      if (amount > 0 && description.length >= 3) {
+        transactions.push({
+          date: currentDate,
+          description,
+          amount,
+          type,
+          rawText: line
+        })
+      }
+    }
+  }
+
+  return transactions
+}
+
+/**
  * Parse transações usando um padrão específico
  */
 function parseWithPattern(
@@ -260,6 +328,11 @@ function parseWithPattern(
   patternName: string,
   currentYear?: number
 ): ParsedTransaction[] {
+  // Se for Nubank, usa parser específico
+  if (patternName === 'nubank') {
+    return parseNubankPDF(text, currentYear)
+  }
+
   const pattern = BANK_PATTERNS[patternName as keyof typeof BANK_PATTERNS]
   if (!pattern) return []
 
@@ -273,16 +346,8 @@ function parseWithPattern(
       let amountStr: string
       let typeIndicator: string | undefined
 
-      // Nubank format
-      if (patternName === 'nubank') {
-        date = normalizeDate(`${match[1]} ${match[2]}`, pattern.dateFormat, currentYear)
-        description = cleanDescription(match[3])
-        amountStr = match[4]
-        // Nubank sempre mostra despesas
-        typeIndicator = '-'
-      }
       // Santander format
-      else if (patternName === 'santander') {
+      if (patternName === 'santander') {
         date = normalizeDate(match[1], pattern.dateFormat, currentYear)
         description = cleanDescription(match[2])
         typeIndicator = match[3] ? '-' : '+' // Se tem "- " antes do R$, é despesa
