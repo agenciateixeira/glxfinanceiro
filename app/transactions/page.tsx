@@ -80,6 +80,7 @@ export default function TransactionsPage() {
       fetchTags()
 
       // Setup Realtime subscriptions
+      // RLS policies handle user filtering including shared spouse accounts
       const transactionsChannel = supabase
         .channel('transactions-changes')
         .on(
@@ -87,8 +88,7 @@ export default function TransactionsPage() {
           {
             event: '*',
             schema: 'public',
-            table: 'transactions',
-            filter: `user_id=eq.${user.id}`
+            table: 'transactions'
           },
           () => {
             fetchTransactions()
@@ -111,6 +111,7 @@ export default function TransactionsPage() {
         )
         .subscribe()
 
+      // RLS policies handle user filtering including shared spouse accounts
       const tagsChannel = supabase
         .channel('tags-changes')
         .on(
@@ -118,8 +119,7 @@ export default function TransactionsPage() {
           {
             event: '*',
             schema: 'public',
-            table: 'tags',
-            filter: `user_id=eq.${user.id}`
+            table: 'tags'
           },
           () => {
             fetchTags()
@@ -148,10 +148,10 @@ export default function TransactionsPage() {
 
   const fetchCategories = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .or(`user_id.eq.${user?.id},is_system.eq.true`)
         .order('name')
 
       if (error) throw error
@@ -163,10 +163,10 @@ export default function TransactionsPage() {
 
   const fetchTags = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('tags')
         .select('*')
-        .eq('user_id', user?.id)
         .order('name')
 
       if (error) throw error
@@ -201,10 +201,10 @@ export default function TransactionsPage() {
 
   const fetchTransactions = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       let query = supabase
         .from('recent_transactions')
         .select('*')
-        .eq('user_id', user?.id)
 
       // Filtro de período
       const dateFilter = getDateFilter()

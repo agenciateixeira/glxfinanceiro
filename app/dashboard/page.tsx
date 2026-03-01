@@ -100,12 +100,6 @@ export default function DashboardPage() {
     })
   )
 
-  useEffect(() => {
-    if (user?.id) {
-      loadDashboardData()
-    }
-  }, [user, period])
-
   // Handlers do modo de edição
   const handleEnterEditMode = () => setIsEditMode(true)
   const handleExitEditMode = () => setIsEditMode(false)
@@ -168,23 +162,29 @@ export default function DashboardPage() {
 
     setLoading(true)
     try {
+      console.log('[Dashboard] Iniciando carregamento...')
+
       // Carregar projeção
+      console.log('[Dashboard] Carregando projeção...')
       const projectionData = await calculateFinancialProjection(user.id)
+      console.log('[Dashboard] Projeção carregada:', projectionData)
       setProjection(projectionData)
 
       // Carregar insights de gastos
+      console.log('[Dashboard] Carregando insights...')
       const insightsData = await analyzeCurrentMonthSpending(user.id)
+      console.log('[Dashboard] Insights carregados:', insightsData)
       setInsights(insightsData)
 
       // Buscar meta ativa para análise
+      // RLS policies handle user filtering including shared spouse accounts
       const { data: activeGoal } = await supabase
         .from('goals')
         .select('id')
-        .eq('user_id', user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (activeGoal) {
         const goalProgressData = await analyzeGoalProgress(user.id, activeGoal.id)
@@ -192,6 +192,8 @@ export default function DashboardPage() {
       }
 
       // Buscar transações recentes
+      // IMPORTANTE: Não filtrar por user_id aqui - deixar as políticas RLS fazerem isso
+      // Isso permite que cônjuges vejam as transações compartilhadas
       const dateFilter = getDateFilter()
       let transactionsQuery = supabase
         .from('transactions')
@@ -207,7 +209,6 @@ export default function DashboardPage() {
             color
           )
         `)
-        .eq('user_id', user.id)
 
       if (dateFilter) {
         transactionsQuery = transactionsQuery.gte('date', dateFilter)
@@ -236,6 +237,7 @@ export default function DashboardPage() {
       const today = new Date()
       const currentDay = today.getDate()
 
+      // RLS policies handle user filtering including shared spouse accounts
       const { data: recurring } = await supabase
         .from('recurring_expenses')
         .select(`
@@ -248,7 +250,6 @@ export default function DashboardPage() {
             color
           )
         `)
-        .eq('user_id', user.id)
         .eq('is_active', true)
         .not('expected_day', 'is', null)
         .order('expected_day', { ascending: true })
@@ -294,10 +295,10 @@ export default function DashboardPage() {
       }
 
       // Transações do período atual
+      // RLS aplicará automaticamente o filtro para incluir transações compartilhadas
       let currentQuery = supabase
         .from('transactions')
         .select('amount, type')
-        .eq('user_id', user.id)
 
       if (currentPeriodStart) {
         currentQuery = currentQuery
@@ -308,10 +309,10 @@ export default function DashboardPage() {
       const { data: currentPeriodTransactions } = await currentQuery
 
       // Transações do período anterior
+      // RLS aplicará automaticamente o filtro para incluir transações compartilhadas
       let lastQuery = supabase
         .from('transactions')
         .select('amount, type')
-        .eq('user_id', user.id)
 
       if (lastPeriodStart && lastPeriodEnd) {
         lastQuery = lastQuery
@@ -344,6 +345,13 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (user?.id) {
+      loadDashboardData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, period])
 
   if (loading) {
     return (

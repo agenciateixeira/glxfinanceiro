@@ -67,10 +67,10 @@ export default function FinancialSettingsPage() {
 
   const fetchConfirmedExpenses = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('recurring_expenses')
         .select('id')
-        .eq('user_id', user?.id)
         .eq('is_active', true)
 
       if (error) throw error
@@ -139,11 +139,11 @@ export default function FinancialSettingsPage() {
 
   const fetchSettings = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('financial_settings')
         .select('*')
-        .eq('user_id', user?.id)
-        .single()
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') throw error // PGRST116 = não encontrado
 

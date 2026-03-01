@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
           const { data: existingTag } = await supabase
             .from('tags')
             .select('id')
-            .eq('user_id', user.id)
+            // RLS policies now handle user filtering including shared spouse accounts
             .eq('name', personName)
             .single()
 

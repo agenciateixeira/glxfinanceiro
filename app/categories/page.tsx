@@ -48,6 +48,7 @@ export default function CategoriesPage() {
       fetchCategories()
 
       // Setup Realtime subscription
+      // RLS policies handle filtering, so we listen to all categories changes
       const channel = supabase
         .channel('categories-changes')
         .on(
@@ -55,8 +56,7 @@ export default function CategoriesPage() {
           {
             event: '*',
             schema: 'public',
-            table: 'categories',
-            filter: `user_id=eq.${user.id}`
+            table: 'categories'
           },
           () => {
             // Reload categories when any change happens
@@ -75,10 +75,10 @@ export default function CategoriesPage() {
   const fetchCategories = async () => {
     try {
       setLoading(true)
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .or(`user_id.eq.${user?.id},is_system.eq.true`)
         .order('type', { ascending: true })
         .order('name', { ascending: true })
 

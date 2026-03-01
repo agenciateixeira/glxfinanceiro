@@ -54,15 +54,16 @@ export async function calculateFinancialProjection(userId: string): Promise<Fina
 
   try {
     // 1. Buscar configurações financeiras
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: settings, error: settingsError } = await supabase
       .from('financial_settings')
       .select('*')
-      .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     if (settingsError && settingsError.code !== 'PGRST116') throw settingsError
 
     // 2. Buscar gastos fixos confirmados
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: recurringExpenses, error: recurringError } = await supabase
       .from('recurring_expenses')
       .select(`
@@ -73,7 +74,6 @@ export async function calculateFinancialProjection(userId: string): Promise<Fina
         category_id,
         categories (name, color)
       `)
-      .eq('user_id', userId)
       .eq('is_active', true)
 
     if (recurringError) throw recurringError
@@ -82,6 +82,7 @@ export async function calculateFinancialProjection(userId: string): Promise<Fina
     const threeMonthsAgo = new Date()
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: transactions, error: transactionsError } = await supabase
       .from('transactions')
       .select(`
@@ -92,7 +93,6 @@ export async function calculateFinancialProjection(userId: string): Promise<Fina
         category_id,
         categories (name, color, icon)
       `)
-      .eq('user_id', userId)
       .gte('date', threeMonthsAgo.toISOString())
 
     if (transactionsError) throw transactionsError

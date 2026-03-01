@@ -81,10 +81,10 @@ export default function GoalsPage() {
 
   const fetchGoals = async () => {
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error} = await supabase
         .from('goals')
         .select('*')
-        .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error

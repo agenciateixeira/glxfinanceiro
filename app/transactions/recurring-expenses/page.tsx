@@ -97,11 +97,11 @@ export default function RecurringExpensesPage() {
     if (!user) return
 
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data } = await supabase
         .from('financial_settings')
         .select('person1_name, person2_name')
-        .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       setSettings(data)
     } catch (error) {
@@ -113,6 +113,7 @@ export default function RecurringExpensesPage() {
     if (!user) return
 
     try {
+      // RLS policies handle user filtering including shared spouse accounts
       const { data, error } = await supabase
         .from('recurring_expenses')
         .select(`
@@ -123,7 +124,6 @@ export default function RecurringExpensesPage() {
             icon
           )
         `)
-        .eq('user_id', user.id)
         .order('description', { ascending: true })
 
       if (error) throw error
@@ -143,7 +143,7 @@ export default function RecurringExpensesPage() {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .eq('user_id', user.id)
+        // RLS policies now handle user filtering including shared spouse accounts
         .order('name', { ascending: true })
 
       if (error) throw error

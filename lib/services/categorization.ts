@@ -178,6 +178,7 @@ async function getUserMappings(userId: string): Promise<CategoryMapping[]> {
 async function getHistoricalTransactions(userId: string) {
   const supabase = createClient()
 
+  // RLS policies handle user filtering including shared spouse accounts
   const { data, error } = await supabase
     .from('transactions')
     .select(`
@@ -189,7 +190,6 @@ async function getHistoricalTransactions(userId: string) {
         type
       )
     `)
-    .eq('user_id', userId)
     .not('category_id', 'is', null)
     .limit(500)
 

@@ -107,10 +107,10 @@ export function EditTransactionModal({
   }
 
   const fetchTags = async () => {
+    // RLS policies handle user filtering including shared spouse accounts
     const { data } = await supabase
       .from('tags')
       .select('*')
-      .eq('user_id', user?.id)
       .order('name')
 
     if (data) {

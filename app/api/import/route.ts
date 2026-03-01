@@ -75,10 +75,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Busca categorias existentes
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: existingCategories } = await supabase
       .from('categories')
       .select('id, name, type')
-      .or(`user_id.eq.${user.id},is_system.eq.true`)
 
     const categoryMap = new Map(
       (existingCategories || []).map(c => [c.name.toLowerCase(), c])

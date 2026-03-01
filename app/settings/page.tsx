@@ -39,26 +39,35 @@ export default function SettingsPage() {
     try {
       setLoading(true)
 
+      console.log('[Settings] Buscando cônjuge para user:', user?.id)
+
       // Busca vínculo
-      const { data: link } = await supabase
+      const { data: link, error: linkError } = await supabase
         .from('shared_accounts')
         .select('*')
         .or(`user1_id.eq.${user?.id},user2_id.eq.${user?.id}`)
-        .single()
+        .maybeSingle()
+
+      console.log('[Settings] Vínculo encontrado:', link, 'Error:', linkError)
 
       if (link) {
         // Identifica o ID do cônjuge
         const spouseId = link.user1_id === user?.id ? link.user2_id : link.user1_id
+        console.log('[Settings] ID do cônjuge:', spouseId)
 
-        // Busca dados do cônjuge
-        const { data: spouseData } = await supabase
-          .from('users')
-          .select('id, email, full_name')
-          .eq('id', spouseId)
-          .single()
+        // Busca dados do cônjuge - usa API para obter email do auth.users
+        const response = await fetch('/api/get-spouse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ spouseId })
+        })
 
-        if (spouseData) {
-          setSpouse(spouseData)
+        if (response.ok) {
+          const data = await response.json()
+          console.log('[Settings] Dados do cônjuge:', data.spouse)
+          setSpouse(data.spouse)
+        } else {
+          console.error('[Settings] Erro ao buscar dados do cônjuge')
         }
       }
     } catch (error) {

@@ -36,6 +36,7 @@ export async function analyzeCurrentMonthSpending(userId: string): Promise<Finan
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
     // Buscar transações do mês atual
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: currentMonthTransactions } = await supabase
       .from('transactions')
       .select(`
@@ -47,15 +48,14 @@ export async function analyzeCurrentMonthSpending(userId: string): Promise<Finan
         category_id,
         categories (name, color, icon)
       `)
-      .eq('user_id', userId)
       .eq('type', 'expense')
       .gte('date', startOfMonth.toISOString())
 
     // Buscar transações do mês passado para comparação
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: lastMonthTransactions } = await supabase
       .from('transactions')
       .select('amount, category_id, payment_method')
-      .eq('user_id', userId)
       .eq('type', 'expense')
       .gte('date', startOfLastMonth.toISOString())
       .lte('date', endOfLastMonth.toISOString())
@@ -188,11 +188,11 @@ export async function analyzeGoalProgress(userId: string, goalId: string): Promi
 
   try {
     // Buscar meta
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: goal, error: goalError } = await supabase
       .from('goals')
       .select('*')
       .eq('id', goalId)
-      .eq('user_id', userId)
       .single()
 
     if (goalError || !goal) return null
@@ -213,11 +213,11 @@ export async function analyzeGoalProgress(userId: string, goalId: string): Promi
     const monthlyRequired = amountRemaining / monthsRemaining
 
     // Buscar configurações financeiras
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: settings } = await supabase
       .from('financial_settings')
       .select('*')
-      .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     const monthlyIncome = settings
       ? (settings.person1_salary || 0) * (1 - (settings.person1_tax_rate || 0) / 100) +
@@ -225,10 +225,10 @@ export async function analyzeGoalProgress(userId: string, goalId: string): Promi
       : 0
 
     // Buscar gastos fixos
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: recurringExpenses } = await supabase
       .from('recurring_expenses')
       .select('expected_amount')
-      .eq('user_id', userId)
       .eq('is_active', true)
 
     const fixedExpenses = (recurringExpenses || []).reduce((sum, e) => sum + Number(e.expected_amount), 0)
@@ -237,10 +237,10 @@ export async function analyzeGoalProgress(userId: string, goalId: string): Promi
     const threeMonthsAgo = new Date()
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
+    // RLS policies handle user filtering including shared spouse accounts
     const { data: transactions } = await supabase
       .from('transactions')
       .select('amount, type, category_id, categories(name, icon, color)')
-      .eq('user_id', userId)
       .eq('type', 'expense')
       .gte('date', threeMonthsAgo.toISOString())
 

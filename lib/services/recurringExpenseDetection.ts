@@ -37,6 +37,7 @@ export async function detectRecurringExpenses(userId: string): Promise<Recurring
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
+  // RLS policies handle user filtering including shared spouse accounts
   const { data: transactions, error } = await supabase
     .from('transactions')
     .select(`
@@ -48,7 +49,6 @@ export async function detectRecurringExpenses(userId: string): Promise<Recurring
       category_id,
       categories (name)
     `)
-    .eq('user_id', userId)
     .eq('type', 'expense')
     .gte('date', sixMonthsAgo.toISOString())
     .order('date', { ascending: true })
