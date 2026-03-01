@@ -262,61 +262,94 @@ function extractYear(text: string): number | undefined {
 function parseNubankPDF(text: string, currentYear?: number): ParsedTransaction[] {
   const transactions: ParsedTransaction[] = []
 
-  // Separa o PDF em blocos por data
-  // Formato: "03 JAN 2026" ou "05 JAN 2026"
-  const dateBlockPattern = /(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/gi
+  console.log('[Nubank Parser] PDF text length:', text.length)
+  console.log('[Nubank Parser] First 500 chars:', text.substring(0, 500))
 
-  const lines = text.split('\n')
-  let currentDate: string | null = null
+  // Pattern SIMPLIFICADO - captura QUALQUER linha com valor em reais
+  // Formato: "qualquer coisa ... 60,00" ou "qualquer coisa ... 1.234,56"
+  const transactionPattern = /(Transferência\s+recebida\s+pelo\s+Pix|Transferência\s+enviada\s+pelo\s+Pix|Transferencia\s+Recebida|Compra\s+no\s+débito(?:\s+via\s+NuPay)?|Pagamento\s+de\s+fatura|Resgate\s+de\s+empréstimo|Recarga\s+de\s+celular|Depósito\s+de\s+empréstimo|Reembolso\s+recebido\s+pelo\s+Pix|Valor\s+adicionado\s+na\s+conta)\s+(.+?)\s+([\d.]+,\d{2})/gi
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim()
+  console.log('[Nubank Parser] Testing pattern...')
 
-    // Verifica se é uma linha de data
-    const dateMatch = line.match(/^(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/)
-    if (dateMatch) {
-      const day = dateMatch[1]
-      const month = MONTH_MAP[dateMatch[2].toUpperCase()]
-      const year = dateMatch[3]
-      currentDate = `${year}-${month}-${day.padStart(2, '0')}`
+  // Primeiro, extrai o ano do documento
+  const yearMatch = text.match(/(\d{4})/)
+  const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear())
+
+  // Extrai datas do texto para mapear contexto
+  const datePattern = /(\d{1,2})\s+(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{4})/gi
+  const dates: { index: number; date: string }[] = []
+
+  let dateMatch: RegExpExecArray | null
+  while ((dateMatch = datePattern.exec(text)) !== null) {
+    const day = dateMatch[1]
+    const month = MONTH_MAP[dateMatch[2].toUpperCase()]
+    const dateYear = dateMatch[3]
+    const formattedDate = `${dateYear}-${month}-${day.padStart(2, '0')}`
+    dates.push({ index: dateMatch.index, date: formattedDate })
+  }
+
+  // Agora extrai transações e mapeia para a data mais próxima
+  let match: RegExpExecArray | null
+  let matchCount = 0
+  while ((match = transactionPattern.exec(text)) !== null) {
+    matchCount++
+    console.log(`[Nubank Parser] Match ${matchCount}:`, {
+      type: match[1],
+      desc: match[2].substring(0, 50),
+      amount: match[3]
+    })
+
+    const transactionType = match[1]
+    const description = match[2].trim()
+    const amountStr = match[3]
+    const amount = parseBrazilianNumber(amountStr)
+
+    console.log(`[Nubank Parser] Parsed amount:`, amount)
+
+    if (amount === 0) {
+      console.log('[Nubank Parser] Skipping - amount is 0')
       continue
     }
 
-    // Ignora linhas que não são transações
-    if (!line || line.includes('Total de entradas') || line.includes('Total de saídas') ||
-        line.includes('Saldo') || line.includes('Tem alguma dúvida')) {
-      continue
+    // Encontra a data mais próxima ANTES da transação
+    let transactionDate = dates[0]?.date || `${year}-01-01`
+    for (const dateInfo of dates) {
+      if (dateInfo.index < match.index) {
+        transactionDate = dateInfo.date
+      } else {
+        break
+      }
     }
 
-    // Tenta capturar transação na linha
-    const transactionPattern = /(Transferência\s+(?:recebida|enviada)|Transferencia\s+(?:Recebida|Enviada)|Compra\s+no\s+débito(?:\s+via\s+NuPay)?|Pagamento\s+de\s+fatura|Resgate\s+de\s+empréstimo|Recarga\s+de\s+celular|Depósito\s+de\s+empréstimo|Reembolso\s+recebido\s+pelo\s+Pix|Valor\s+adicionado\s+na\s+conta)\s+(.+?)\s+([\d.]+,\d{2})$/i
+    // Detecta tipo
+    let type: 'income' | 'expense' = 'expense'
+    const typeLower = transactionType.toLowerCase()
+    if (typeLower.includes('recebid') ||
+        typeLower.includes('deposito de emprestimo') ||
+        typeLower.includes('depósito de empréstimo') ||
+        typeLower.includes('reembolso')) {
+      type = 'income'
+    }
 
-    const match = line.match(transactionPattern)
-    if (match && currentDate) {
-      const transactionType = match[1]
-      const description = cleanDescription(`${transactionType} ${match[2]}`)
-      const amount = parseBrazilianNumber(match[3])
+    // Limpa descrição
+    const cleanedDesc = cleanDescription(`${transactionType} - ${description}`)
 
-      // Detecta tipo
-      let type: 'income' | 'expense' = 'expense'
-      if (transactionType.toLowerCase().includes('recebid') ||
-          transactionType.toLowerCase().includes('deposito de emprestimo') ||
-          transactionType.toLowerCase().includes('reembolso')) {
-        type = 'income'
-      }
+    console.log(`[Nubank Parser] Adding transaction:`, { date: transactionDate, desc: cleanedDesc, amount, type })
 
-      if (amount > 0 && description.length >= 3) {
-        transactions.push({
-          date: currentDate,
-          description,
-          amount,
-          type,
-          rawText: line
-        })
-      }
+    if (cleanedDesc.length >= 3) {
+      transactions.push({
+        date: transactionDate,
+        description: cleanedDesc,
+        amount,
+        type,
+        rawText: match[0]
+      })
     }
   }
 
+  console.log(`[Nubank Parser] Total matches: ${matchCount}`)
+  console.log(`[Nubank Parser] Found ${transactions.length} valid transactions`)
+  console.log(`[Nubank Parser] Dates found:`, dates.length)
   return transactions
 }
 
