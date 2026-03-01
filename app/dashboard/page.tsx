@@ -37,12 +37,46 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
+interface RecentTransaction {
+  id: string
+  description: string
+  amount: number
+  type: 'income' | 'expense'
+  date: string
+  category_name: string | null
+  category_icon: string | null
+  category_color: string | null
+}
+
+interface UpcomingExpense {
+  id: string
+  description: string
+  expected_amount: number
+  expected_day: number
+  category_icon: string | null
+  category_color: string | null
+  days_until: number
+}
+
+interface MonthlyComparison {
+  incomeChange: number
+  expensesChange: number
+  balanceChange: number
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const supabase = createClient()
   const [projection, setProjection] = useState<FinancialProjection | null>(null)
   const [insights, setInsights] = useState<FinancialInsight[]>([])
   const [goalProgress, setGoalProgress] = useState<GoalProgress | null>(null)
+  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([])
+  const [upcomingExpenses, setUpcomingExpenses] = useState<UpcomingExpense[]>([])
+  const [monthlyComparison, setMonthlyComparison] = useState<MonthlyComparison>({
+    incomeChange: 0,
+    expensesChange: 0,
+    balanceChange: 0,
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -78,6 +112,123 @@ export default function DashboardPage() {
         const goalProgressData = await analyzeGoalProgress(user.id, activeGoal.id)
         setGoalProgress(goalProgressData)
       }
+
+      // Buscar transações recentes
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select(`
+          id,
+          description,
+          amount,
+          type,
+          date,
+          categories (
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .limit(5)
+
+      if (transactions) {
+        setRecentTransactions(
+          transactions.map((t: any) => ({
+            id: t.id,
+            description: t.description,
+            amount: t.amount,
+            type: t.type,
+            date: t.date,
+            category_name: t.categories?.name || null,
+            category_icon: t.categories?.icon || null,
+            category_color: t.categories?.color || null,
+          }))
+        )
+      }
+
+      // Buscar próximos gastos fixos
+      const today = new Date()
+      const currentDay = today.getDate()
+
+      const { data: recurring } = await supabase
+        .from('recurring_expenses')
+        .select(`
+          id,
+          description,
+          expected_amount,
+          expected_day,
+          categories (
+            icon,
+            color
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .not('expected_day', 'is', null)
+        .order('expected_day', { ascending: true })
+
+      if (recurring) {
+        const upcomingList = recurring
+          .map((e: any) => {
+            const daysUntil = e.expected_day >= currentDay
+              ? e.expected_day - currentDay
+              : (30 - currentDay) + e.expected_day
+            return {
+              id: e.id,
+              description: e.description,
+              expected_amount: e.expected_amount,
+              expected_day: e.expected_day,
+              category_icon: e.categories?.icon || null,
+              category_color: e.categories?.color || null,
+              days_until: daysUntil,
+            }
+          })
+          .sort((a, b) => a.days_until - b.days_until)
+          .slice(0, 3)
+
+        setUpcomingExpenses(upcomingList)
+      }
+
+      // Calcular comparação mensal
+      const now = new Date()
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+
+      // Transações do mês atual
+      const { data: currentMonthTransactions } = await supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', user.id)
+        .gte('date', currentMonthStart.toISOString())
+        .lte('date', now.toISOString())
+
+      // Transações do mês anterior
+      const { data: lastMonthTransactions } = await supabase
+        .from('transactions')
+        .select('amount, type')
+        .eq('user_id', user.id)
+        .gte('date', lastMonthStart.toISOString())
+        .lte('date', lastMonthEnd.toISOString())
+
+      const currentIncome = currentMonthTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
+      const currentExpenses = currentMonthTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
+      const currentBalance = currentIncome - currentExpenses
+
+      const lastIncome = lastMonthTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
+      const lastExpenses = lastMonthTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
+      const lastBalance = lastIncome - lastExpenses
+
+      const incomeChange = lastIncome > 0 ? ((currentIncome - lastIncome) / lastIncome) * 100 : 0
+      const expensesChange = lastExpenses > 0 ? ((currentExpenses - lastExpenses) / lastExpenses) * 100 : 0
+      const balanceChange = lastBalance !== 0 ? ((currentBalance - lastBalance) / Math.abs(lastBalance)) * 100 : 0
+
+      setMonthlyComparison({
+        incomeChange,
+        expensesChange,
+        balanceChange,
+      })
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error)
     } finally {
@@ -183,6 +334,27 @@ export default function DashboardPage() {
 
   const projectionColors = getProjectionColor(projection.projectedStatus)
   const projectionMessage = getProjectionMessage(projection.projectedStatus)
+
+  // Componente para indicador de mudança percentual
+  const PercentageIndicator = ({ value, inverse = false }: { value: number; inverse?: boolean }) => {
+    if (value === 0) return null
+
+    const isPositive = inverse ? value < 0 : value > 0
+    const colorClass = isPositive
+      ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+      : 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20'
+
+    return (
+      <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
+        {isPositive ? (
+          <TrendingUp className="h-3 w-3" />
+        ) : (
+          <TrendingDown className="h-3 w-3" />
+        )}
+        <span>{Math.abs(value).toFixed(1)}%</span>
+      </div>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -416,6 +588,211 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Widgets Grid - Recent Transactions & Upcoming Expenses */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Recent Transactions Widget */}
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Transações Recentes
+              </h2>
+              <Link href="/transactions">
+                <Button variant="ghost" size="sm" className="text-[#D4C5B9] hover:text-[#C4B5A9]">
+                  Ver todas
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+
+            {recentTransactions.length > 0 ? (
+              <div className="space-y-3">
+                {recentTransactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-100 dark:hover:bg-[#333333] transition-colors"
+                  >
+                    {transaction.category_icon && (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${transaction.category_color}20` }}
+                      >
+                        <span className="text-xl">{transaction.category_icon}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {transaction.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {transaction.category_name && (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{
+                              backgroundColor: `${transaction.category_color}20`,
+                              color: transaction.category_color,
+                            }}
+                          >
+                            {transaction.category_name}
+                          </span>
+                        )}
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(transaction.date).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'short',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    <p
+                      className={`text-sm font-bold flex-shrink-0 ${
+                        transaction.type === 'income'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {transaction.type === 'income' ? '+' : '-'}
+                      {formatCurrency(transaction.amount)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Nenhuma transação encontrada
+                </p>
+                <Link href="/transactions">
+                  <Button size="sm" className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white">
+                    Adicionar Transação
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Expenses Widget */}
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Próximos Gastos Fixos
+              </h2>
+              <Link href="/transactions/recurring-expenses">
+                <Button variant="ghost" size="sm" className="text-[#D4C5B9] hover:text-[#C4B5A9]">
+                  Gerenciar
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </Link>
+            </div>
+
+            {upcomingExpenses.length > 0 ? (
+              <div className="space-y-3">
+                {upcomingExpenses.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg"
+                  >
+                    {expense.category_icon && (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: `${expense.category_color}20` }}
+                      >
+                        <span className="text-xl">{expense.category_icon}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {expense.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          {expense.days_until === 0
+                            ? 'Hoje'
+                            : expense.days_until === 1
+                            ? 'Amanhã'
+                            : `Em ${expense.days_until} dias`}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Dia {expense.expected_day}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-rose-600 dark:text-rose-400 flex-shrink-0">
+                      {formatCurrency(expense.expected_amount)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  Nenhum gasto fixo agendado
+                </p>
+                <Link href="/transactions/recurring-expenses">
+                  <Button size="sm" className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white">
+                    Adicionar Gasto Fixo
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Monthly Comparison Summary */}
+        {(monthlyComparison.incomeChange !== 0 || monthlyComparison.expensesChange !== 0) && (
+          <div className="mb-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-xl p-4 sm:p-6 border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-blue-600 rounded-lg flex items-center justify-center">
+                <Info className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  Comparativo Mensal
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Mudanças em relação ao mês anterior
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Income Comparison */}
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-gray-200 dark:border-[#2a2a2a]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Receitas</span>
+                  <PercentageIndicator value={monthlyComparison.incomeChange} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {monthlyComparison.incomeChange > 0 ? 'Aumento' : monthlyComparison.incomeChange < 0 ? 'Redução' : 'Estável'} em relação ao mês anterior
+                </p>
+              </div>
+
+              {/* Expenses Comparison */}
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-gray-200 dark:border-[#2a2a2a]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Despesas</span>
+                  <PercentageIndicator value={monthlyComparison.expensesChange} inverse />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {monthlyComparison.expensesChange > 0 ? 'Aumento' : monthlyComparison.expensesChange < 0 ? 'Redução' : 'Estável'} nos gastos totais
+                </p>
+              </div>
+
+              {/* Balance Comparison */}
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-lg p-4 border border-gray-200 dark:border-[#2a2a2a]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo</span>
+                  <PercentageIndicator value={monthlyComparison.balanceChange} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  {monthlyComparison.balanceChange > 0 ? 'Melhora' : monthlyComparison.balanceChange < 0 ? 'Piora' : 'Mantido'} no resultado final
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* Total Income */}
@@ -425,7 +802,10 @@ export default function DashboardPage() {
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Receita Mensal</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Receita Mensal</p>
+                  <PercentageIndicator value={monthlyComparison.incomeChange} />
+                </div>
                 <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {formatCurrency(projection.totalMonthlyIncome)}
                 </p>
@@ -446,7 +826,10 @@ export default function DashboardPage() {
                 <TrendingDown className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Gastos Fixos</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Gastos Fixos</p>
+                  <PercentageIndicator value={monthlyComparison.expensesChange} inverse />
+                </div>
                 <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {formatCurrency(projection.totalFixedExpenses)}
                 </p>
@@ -464,7 +847,10 @@ export default function DashboardPage() {
                 <DollarSign className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Gastos Variáveis</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Gastos Variáveis</p>
+                  <PercentageIndicator value={monthlyComparison.expensesChange} inverse />
+                </div>
                 <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {formatCurrency(projection.averageVariableExpenses)}
                 </p>
@@ -482,7 +868,10 @@ export default function DashboardPage() {
                 <Calendar className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Saldo do Mês</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">Saldo do Mês</p>
+                  <PercentageIndicator value={monthlyComparison.balanceChange} />
+                </div>
                 <p className={`text-lg sm:text-xl font-bold truncate ${
                   projection.currentMonthBalance >= 0
                     ? 'text-emerald-600 dark:text-emerald-400'
