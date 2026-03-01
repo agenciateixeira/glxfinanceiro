@@ -17,6 +17,7 @@ import {
   LogOut,
   Bell,
   ChevronDown,
+  RefreshCw,
 } from 'lucide-react'
 
 interface NavItem {
@@ -34,6 +35,7 @@ const navigation: NavItem[] = [
     icon: ArrowLeftRight,
     subItems: [
       { name: 'Listar Transações', href: '/transactions', icon: ArrowLeftRight },
+      { name: 'Gastos Fixos', href: '/transactions/recurring-expenses', icon: RefreshCw },
       { name: 'Configurações Financeiras', href: '/transactions/settings', icon: Settings },
     ]
   },
