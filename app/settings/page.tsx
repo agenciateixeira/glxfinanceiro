@@ -116,18 +116,21 @@ export default function SettingsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('shared_accounts')
-        .delete()
-        .or(`user1_id.eq.${user?.id},user2_id.eq.${user?.id}`)
+      const response = await fetch('/api/delete-spouse', {
+        method: 'DELETE'
+      })
 
-      if (error) throw error
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao desvincular cônjuge')
+      }
 
       toast.success('Cônjuge desvinculado com sucesso')
       setSpouse(null)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao remover vínculo:', error)
-      toast.error('Erro ao desvincular cônjuge')
+      toast.error(error.message || 'Erro ao desvincular cônjuge')
     }
   }
 

@@ -39,30 +39,54 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Cria conta do cônjuge no Auth do Supabase
-    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Auto-confirma o email
-      user_metadata: {
-        full_name
-      }
-    })
+    // Usar fetch direto para a API do Supabase para não afetar a sessão atual
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || ''
 
-    if (signUpError || !authData.user) {
-      console.error('Erro ao criar usuário:', signUpError)
+    if (!supabaseServiceKey) {
+      console.error('SUPABASE_SERVICE_ROLE_KEY não configurada')
       return NextResponse.json(
-        { error: signUpError?.message || 'Erro ao criar conta do cônjuge' },
+        { error: 'Configuração do servidor incompleta' },
         { status: 500 }
       )
     }
+
+    // Cria usuário diretamente via API Admin do Supabase
+    const createUserResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json',
+        'apikey': supabaseServiceKey
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name
+        }
+      })
+    })
+
+    const authData = await createUserResponse.json()
+
+    if (!createUserResponse.ok || !authData.id) {
+      console.error('Erro ao criar usuário:', authData)
+      return NextResponse.json(
+        { error: authData.msg || authData.error_description || 'Erro ao criar conta do cônjuge' },
+        { status: 500 }
+      )
+    }
+
+    const newUserId = authData.id
 
     // Adiciona nome completo na tabela users
     const { error: userError } = await supabase
       .from('users')
       .insert({
-        id: authData.user.id,
-        email: authData.user.email,
+        id: newUserId,
+        email: authData.email,
         full_name
       })
 
@@ -76,15 +100,12 @@ export async function POST(request: NextRequest) {
       .from('shared_accounts')
       .insert({
         user1_id: user.id,
-        user2_id: authData.user.id,
+        user2_id: newUserId,
         created_by: user.id
       })
 
     if (linkError) {
       console.error('Erro ao vincular contas:', linkError)
-
-      // Tenta deletar a conta criada se o vínculo falhou
-      await supabase.auth.admin.deleteUser(authData.user.id)
 
       return NextResponse.json(
         { error: 'Erro ao vincular contas' },
@@ -96,8 +117,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Cônjuge cadastrado com sucesso!',
       spouse: {
-        id: authData.user.id,
-        email: authData.user.email,
+        id: newUserId,
+        email: authData.email,
         full_name
       }
     })
