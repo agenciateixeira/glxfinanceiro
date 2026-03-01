@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { createClient } from '@/lib/supabase/client'
 import {
   calculateFinancialProjection,
   formatCurrency,
@@ -11,6 +12,12 @@ import {
   getProjectionMessage,
   type FinancialProjection,
 } from '@/lib/services/financialProjection'
+import {
+  analyzeCurrentMonthSpending,
+  analyzeGoalProgress,
+  type FinancialInsight,
+  type GoalProgress,
+} from '@/lib/services/financialInsights'
 import {
   TrendingUp,
   TrendingDown,
@@ -22,29 +29,57 @@ import {
   ArrowRight,
   Settings,
   Sparkles,
+  Lightbulb,
+  Target,
+  XCircle,
+  Info,
+  CreditCard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const supabase = createClient()
   const [projection, setProjection] = useState<FinancialProjection | null>(null)
+  const [insights, setInsights] = useState<FinancialInsight[]>([])
+  const [goalProgress, setGoalProgress] = useState<GoalProgress | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user?.id) {
-      loadProjection()
+      loadDashboardData()
     }
   }, [user])
 
-  const loadProjection = async () => {
+  const loadDashboardData = async () => {
     if (!user?.id) return
 
     setLoading(true)
     try {
-      const data = await calculateFinancialProjection(user.id)
-      setProjection(data)
+      // Carregar projeção
+      const projectionData = await calculateFinancialProjection(user.id)
+      setProjection(projectionData)
+
+      // Carregar insights de gastos
+      const insightsData = await analyzeCurrentMonthSpending(user.id)
+      setInsights(insightsData)
+
+      // Buscar meta ativa para análise
+      const { data: activeGoal } = await supabase
+        .from('goals')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (activeGoal) {
+        const goalProgressData = await analyzeGoalProgress(user.id, activeGoal.id)
+        setGoalProgress(goalProgressData)
+      }
     } catch (error) {
-      console.error('Erro ao carregar projeção:', error)
+      console.error('Erro ao carregar dashboard:', error)
     } finally {
       setLoading(false)
     }
@@ -192,6 +227,194 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Financial Insights */}
+        {insights.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {insights.map((insight, index) => {
+              const severityColors = {
+                critical: {
+                  bg: 'bg-rose-50 dark:bg-rose-950/20',
+                  border: 'border-rose-200 dark:border-rose-800',
+                  text: 'text-rose-600 dark:text-rose-400',
+                  icon: 'text-rose-600 dark:text-rose-400',
+                },
+                warning: {
+                  bg: 'bg-amber-50 dark:bg-amber-950/20',
+                  border: 'border-amber-200 dark:border-amber-800',
+                  text: 'text-amber-600 dark:text-amber-400',
+                  icon: 'text-amber-600 dark:text-amber-400',
+                },
+                info: {
+                  bg: 'bg-blue-50 dark:bg-blue-950/20',
+                  border: 'border-blue-200 dark:border-blue-800',
+                  text: 'text-blue-600 dark:text-blue-400',
+                  icon: 'text-blue-600 dark:text-blue-400',
+                },
+                positive: {
+                  bg: 'bg-emerald-50 dark:bg-emerald-950/20',
+                  border: 'border-emerald-200 dark:border-emerald-800',
+                  text: 'text-emerald-600 dark:text-emerald-400',
+                  icon: 'text-emerald-600 dark:text-emerald-400',
+                },
+              }[insight.severity]
+
+              const InsightIcon = insight.type === 'payment_method_alert' ? CreditCard :
+                                  insight.type === 'category_spike' ? TrendingUp :
+                                  Lightbulb
+
+              return (
+                <div
+                  key={index}
+                  className={`rounded-xl p-4 sm:p-5 border ${severityColors.bg} ${severityColors.border}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0">
+                      <InsightIcon className={`h-5 w-5 sm:h-6 sm:w-6 ${severityColors.icon}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-sm sm:text-base font-bold ${severityColors.text} mb-1`}>
+                        {insight.title}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
+                        {insight.message}
+                      </p>
+                      {insight.type === 'category_spike' && insight.data.categoryIcon && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-2xl">{insight.data.categoryIcon}</span>
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                            {insight.data.category}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Goal Progress */}
+        {goalProgress && (
+          <div className="mb-6 bg-white dark:bg-[#1a1a1a] rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-[#2a2a2a]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
+                <Target className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                  {goalProgress.goal_name}
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Meta: {formatCurrency(goalProgress.target_amount)} até{' '}
+                  {new Date(goalProgress.deadline).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {formatCurrency(goalProgress.current_amount)} de {formatCurrency(goalProgress.target_amount)}
+                </span>
+                <span className={`text-sm font-bold ${
+                  goalProgress.progress_percentage >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                  goalProgress.progress_percentage >= 50 ? 'text-blue-600 dark:text-blue-400' :
+                  'text-gray-600 dark:text-gray-400'
+                }`}>
+                  {goalProgress.progress_percentage.toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-3 bg-gray-200 dark:bg-[#2a2a2a] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    goalProgress.progress_percentage >= 100 ? 'bg-emerald-500' :
+                    goalProgress.progress_percentage >= 50 ? 'bg-blue-500' :
+                    'bg-purple-500'
+                  }`}
+                  style={{ width: `${Math.min(goalProgress.progress_percentage, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Monthly Required */}
+            <div className={`p-3 rounded-lg mb-4 ${
+              goalProgress.is_achievable
+                ? 'bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800'
+                : 'bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800'
+            }`}>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Necessário por mês:</p>
+              <p className={`text-lg font-bold ${
+                goalProgress.is_achievable
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}>
+                {formatCurrency(goalProgress.monthly_required)}
+              </p>
+            </div>
+
+            {/* Blockers and Facilitators */}
+            {(goalProgress.blockers.length > 0 || goalProgress.facilitators.length > 0) && (
+              <div className="space-y-3">
+                {/* Blockers */}
+                {goalProgress.blockers.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                      <h4 className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                        O que está atrapalhando:
+                      </h4>
+                    </div>
+                    <div className="space-y-2">
+                      {goalProgress.blockers.map((blocker, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-rose-50 dark:bg-rose-950/20 rounded-lg border border-rose-200 dark:border-rose-800"
+                        >
+                          <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                            {blocker.title}
+                          </p>
+                          <p className="text-xs text-rose-600 dark:text-rose-400 mt-1">
+                            {blocker.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Facilitators */}
+                {goalProgress.facilitators.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <h4 className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                        O que está ajudando:
+                      </h4>
+                    </div>
+                    <div className="space-y-2">
+                      {goalProgress.facilitators.map((facilitator, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800"
+                        >
+                          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                            {facilitator.title}
+                          </p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                            {facilitator.message}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Main Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
