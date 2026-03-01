@@ -26,6 +26,12 @@ Execute os seguintes comandos SQL no Supabase:
 -- Execute: lib/sql/recurring_expenses.sql
 ```
 
+## 5. Criar tabela de metas financeiras
+
+```sql
+-- Execute: lib/sql/goals.sql
+```
+
 ## Como executar:
 
 1. Abra o Supabase Dashboard
