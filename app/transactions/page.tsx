@@ -465,74 +465,33 @@ export default function TransactionsPage() {
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all'
                   ? 'Nenhuma transação encontrada'
-                  : 'Comece a gerenciar suas finanças'}
+                  : 'Juntos, construindo um futuro financeiro sólido'}
               </h3>
 
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
                 {searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all'
                   ? 'Tente ajustar os filtros ou buscar por outros termos'
-                  : 'Adicione transações manualmente ou importe um extrato bancário para começar a ter controle total'}
+                  : 'Cada passo dado hoje é um investimento no amanhã que vocês sonham. Comece agora!'}
               </p>
 
               {!(searchTerm || filters.categoryIds.length > 0 || filters.type !== 'all') && (
-                <>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
-                    <Button
-                      variant="outline"
-                      className="border-gray-200 dark:border-[#2a2a2a]"
-                      onClick={() => setIsImportPDFModalOpen(true)}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Importar Extrato
-                    </Button>
-                    <Button
-                      className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
-                      onClick={() => setIsAddModalOpen(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar Transação
-                    </Button>
-                  </div>
-
-                  {/* Dicas úteis */}
-                  <div className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
-                      <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-950/30 rounded-lg flex items-center justify-center mb-3">
-                        <Upload className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                        Importe extratos
-                      </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Suportamos PDFs de diversos bancos
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
-                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-950/30 rounded-lg flex items-center justify-center mb-3">
-                        <Filter className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                        Filtre e organize
-                      </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Use filtros avançados para análise
-                      </p>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg">
-                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-950/30 rounded-lg flex items-center justify-center mb-3">
-                        <Download className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                        Exporte dados
-                      </h4>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Baixe seus dados em CSV
-                      </p>
-                    </div>
-                  </div>
-                </>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    variant="outline"
+                    className="border-gray-200 dark:border-[#2a2a2a]"
+                    onClick={() => setIsImportPDFModalOpen(true)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar Extrato
+                  </Button>
+                  <Button
+                    className="bg-[#D4C5B9] hover:bg-[#C4B5A9] text-white"
+                    onClick={() => setIsAddModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Transação
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
