@@ -35,11 +35,11 @@ const navigation: NavItem[] = [
     icon: ArrowLeftRight,
     subItems: [
       { name: 'Listar Transações', href: '/transactions', icon: ArrowLeftRight },
+      { name: 'Categorias', href: '/categories', icon: FolderOpen },
       { name: 'Gastos Fixos', href: '/transactions/recurring-expenses', icon: RefreshCw },
       { name: 'Configurações Financeiras', href: '/transactions/settings', icon: Settings },
     ]
   },
-  { name: 'Categorias', href: '/categories', icon: FolderOpen },
   { name: 'Metas', href: '/goals', icon: Target },
 ]
 

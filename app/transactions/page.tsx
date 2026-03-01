@@ -9,11 +9,16 @@ import { AddTransactionModal } from '@/components/transactions/AddTransactionMod
 import { EditTransactionModal } from '@/components/transactions/EditTransactionModal'
 import { TransactionDetailsModal } from '@/components/transactions/TransactionDetailsModal'
 import { SimpleImportModal } from '@/components/transactions/SimpleImportModal'
-import { ImportReviewModal } from '@/components/transactions/ImportReviewModal'
 import { TransactionFilters, FilterState } from '@/components/transactions/TransactionFilters'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Toast } from '@/components/ui/toast'
 import { Plus, Upload, Filter, Search, Download } from 'lucide-react'
+
+interface Tag {
+  id: string
+  name: string
+  color: string
+}
 
 interface Transaction {
   id: string
@@ -28,6 +33,7 @@ interface Transaction {
   category_icon: string | null
   category_id: string | null
   notes: string | null
+  tags: Tag[]
 }
 
 export default function TransactionsPage() {
@@ -35,12 +41,14 @@ export default function TransactionsPage() {
   const supabase = createClient()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<any[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [itemsToShow, setItemsToShow] = useState(50)
   const [filters, setFilters] = useState<FilterState>({
     period: '30d',
     categoryIds: [],
+    tagIds: [],
     type: 'all'
   })
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -48,9 +56,6 @@ export default function TransactionsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isImportPDFModalOpen, setIsImportPDFModalOpen] = useState(false)
-  const [isImportReviewModalOpen, setIsImportReviewModalOpen] = useState(false)
-  const [importedTransactions, setImportedTransactions] = useState<any[]>([])
-  const [importBankName, setImportBankName] = useState<string | undefined>()
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
@@ -72,6 +77,62 @@ export default function TransactionsPage() {
     if (user) {
       fetchTransactions()
       fetchCategories()
+      fetchTags()
+
+      // Setup Realtime subscriptions
+      const transactionsChannel = supabase
+        .channel('transactions-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'transactions',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            fetchTransactions()
+          }
+        )
+        .subscribe()
+
+      const categoriesChannel = supabase
+        .channel('categories-changes-tx')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'categories'
+          },
+          () => {
+            fetchCategories()
+          }
+        )
+        .subscribe()
+
+      const tagsChannel = supabase
+        .channel('tags-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tags',
+            filter: `user_id=eq.${user.id}`
+          },
+          () => {
+            fetchTags()
+          }
+        )
+        .subscribe()
+
+      // Cleanup subscriptions on unmount
+      return () => {
+        supabase.removeChannel(transactionsChannel)
+        supabase.removeChannel(categoriesChannel)
+        supabase.removeChannel(tagsChannel)
+      }
     }
   }, [user])
 
@@ -97,6 +158,21 @@ export default function TransactionsPage() {
       setCategories(data || [])
     } catch (error) {
       console.error('Erro ao buscar categorias:', error)
+    }
+  }
+
+  const fetchTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tags')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('name')
+
+      if (error) throw error
+      setTags(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar tags:', error)
     }
   }
 
@@ -205,57 +281,22 @@ export default function TransactionsPage() {
     showToast('Transação salva com sucesso', 'success')
   }
 
-  const handleImportSuccess = (data: any) => {
-    setImportedTransactions(data.transactions)
-    setImportBankName(data.metadata?.bankName)
-    setIsImportReviewModalOpen(true)
-
-    // Mostra informações sobre o que foi processado
-    if (data.metadata?.newCategoriesCreated?.length > 0) {
-      showToast(
-        `${data.metadata.newCategoriesCreated.length} nova(s) categoria(s) criada(s)`,
-        'info',
-        data.metadata.newCategoriesCreated.join(', ')
-      )
-    }
+  const handleImportSuccess = () => {
+    // Refresh transactions after successful import
+    fetchTransactions()
+    showToast('Transações importadas com sucesso', 'success')
   }
 
-  const handleConfirmImport = async (transactions: any[]) => {
-    try {
-      // Insere transações no banco
-      const { error } = await supabase.from('transactions').insert(
-        transactions.map((t) => ({
-          user_id: user?.id,
-          description: t.description,
-          amount: t.amount,
-          type: t.type,
-          category_id: t.suggested_category_id,
-          date: t.date,
-          payment_method: 'other',
-          status: 'completed'
-        }))
-      )
-
-      if (error) throw error
-
-      showToast(
-        `${transactions.length} transação(ões) importada(s) com sucesso`,
-        'success',
-        'As transações foram adicionadas à sua lista'
-      )
-
-      fetchTransactions()
-      setIsImportReviewModalOpen(false)
-      setImportedTransactions([])
-    } catch (error) {
-      console.error('Error importing transactions:', error)
-      showToast('Erro ao importar transações', 'error')
-    }
-  }
-
-  // Filtra apenas por busca de texto (filtros de tipo e categoria já são aplicados na query)
+  // Filtra por busca de texto e tags (filtros de tipo e categoria já são aplicados na query)
   const filteredTransactions = transactions.filter(t => {
-    return t.description.toLowerCase().includes(searchTerm.toLowerCase())
+    // Filtro de busca
+    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase())
+
+    // Filtro de tags
+    const matchesTags = !filters.tagIds || filters.tagIds.length === 0 ||
+      (t.tags && t.tags.some(tag => filters.tagIds?.includes(tag.id)))
+
+    return matchesSearch && matchesTags
   })
 
   // Paginação
@@ -438,6 +479,7 @@ export default function TransactionsPage() {
           <div className="mb-6">
             <TransactionFilters
               categories={categories}
+              tags={tags}
               onFilterChange={setFilters}
               currentFilters={filters}
               onClose={() => setIsFilterDrawerOpen(false)}
@@ -503,6 +545,9 @@ export default function TransactionsPage() {
                         Categoria
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tags
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Tipo
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -536,6 +581,26 @@ export default function TransactionsPage() {
                             </span>
                           ) : (
                             <span className="text-gray-400 dark:text-gray-500">Sem categoria</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {transaction.tags && transaction.tags.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {transaction.tags.map((tag) => (
+                                <span
+                                  key={tag.id}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                                  style={{
+                                    backgroundColor: `${tag.color}20`,
+                                    color: tag.color,
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -613,6 +678,18 @@ export default function TransactionsPage() {
                           {transaction.category_icon} {transaction.category_name}
                         </span>
                       )}
+                      {transaction.tags && transaction.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{
+                            backgroundColor: `${tag.color}20`,
+                            color: tag.color,
+                          }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           transaction.type === 'income'
@@ -681,18 +758,7 @@ export default function TransactionsPage() {
           isOpen={isImportPDFModalOpen}
           onClose={() => setIsImportPDFModalOpen(false)}
           onSuccess={handleImportSuccess}
-        />
-
-        {/* Import Review Modal */}
-        <ImportReviewModal
-          isOpen={isImportReviewModalOpen}
-          onClose={() => {
-            setIsImportReviewModalOpen(false)
-            setImportedTransactions([])
-          }}
-          transactions={importedTransactions}
-          onConfirm={handleConfirmImport}
-          bankName={importBankName}
+          categories={categories}
         />
 
         {/* Delete Confirmation Dialog */}

@@ -794,14 +794,16 @@ export default function DashboardPage() {
                     key={transaction.id}
                     className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-[#2a2a2a] rounded-lg hover:bg-gray-100 dark:hover:bg-[#333333] transition-colors"
                   >
-                    {transaction.category_icon && (
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: `${transaction.category_color}20` }}
-                      >
-                        <span className="text-xl">{transaction.category_icon}</span>
-                      </div>
-                    )}
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: transaction.category_color ? `${transaction.category_color}20` : '#f3f4f620' }}
+                    >
+                      {transaction.type === 'income' ? (
+                        <TrendingUp className="h-5 w-5" style={{ color: transaction.category_color || '#10b981' }} />
+                      ) : (
+                        <TrendingDown className="h-5 w-5" style={{ color: transaction.category_color || '#ef4444' }} />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {transaction.description}

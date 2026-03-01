@@ -12,8 +12,15 @@ interface Category {
   type: 'income' | 'expense'
 }
 
+interface Tag {
+  id: string
+  name: string
+  color: string
+}
+
 interface TransactionFiltersProps {
   categories: Category[]
+  tags?: Tag[]
   onFilterChange: (filters: FilterState) => void
   currentFilters: FilterState
   onClose?: () => void
@@ -24,6 +31,7 @@ export interface FilterState {
   customStartDate?: string
   customEndDate?: string
   categoryIds: string[]
+  tagIds?: string[]
   type?: 'income' | 'expense' | 'all'
 }
 
@@ -35,7 +43,7 @@ const PERIOD_OPTIONS = [
   { value: 'all', label: 'Todos' }
 ]
 
-export function TransactionFilters({ categories, onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
+export function TransactionFilters({ categories, tags = [], onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [localFilters, setLocalFilters] = useState<FilterState>(currentFilters)
 
@@ -55,6 +63,17 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters,
     onFilterChange(newFilters)
   }
 
+  const handleTagToggle = (tagId: string) => {
+    const currentTagIds = localFilters.tagIds || []
+    const newTagIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter(id => id !== tagId)
+      : [...currentTagIds, tagId]
+
+    const newFilters = { ...localFilters, tagIds: newTagIds }
+    setLocalFilters(newFilters)
+    onFilterChange(newFilters)
+  }
+
   const handleTypeChange = (type: FilterState['type']) => {
     const newFilters = { ...localFilters, type }
     setLocalFilters(newFilters)
@@ -65,6 +84,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters,
     const newFilters: FilterState = {
       period: '30d',
       categoryIds: [],
+      tagIds: [],
       type: 'all'
     }
     setLocalFilters(newFilters)
@@ -73,6 +93,7 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters,
 
   const hasActiveFilters =
     localFilters.categoryIds.length > 0 ||
+    (localFilters.tagIds && localFilters.tagIds.length > 0) ||
     localFilters.type !== 'all' ||
     localFilters.period !== '30d'
 
@@ -196,21 +217,13 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters,
                   <button
                     key={category.id}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 sm:gap-1.5 min-h-[44px] ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       localFilters.categoryIds.includes(category.id)
-                        ? 'ring-2 ring-offset-2 dark:ring-offset-[#1a1a1a]'
-                        : 'opacity-60 hover:opacity-100'
+                        ? 'bg-[#8B7355] text-white'
+                        : 'bg-white dark:bg-[#2a2a2a] text-[#8B7355] border border-[#8B7355] hover:bg-[#8B7355] hover:text-white'
                     }`}
-                    style={{
-                      backgroundColor: localFilters.categoryIds.includes(category.id)
-                        ? category.color
-                        : `${category.color}20`,
-                      color: localFilters.categoryIds.includes(category.id) ? 'white' : category.color,
-                      ringColor: category.color
-                    }}
                   >
-                    <span className="flex-shrink-0">{category.icon}</span>
-                    <span className="truncate max-w-[100px] sm:max-w-none">{category.name}</span>
+                    {category.name}
                   </button>
                 ))}
               </div>
@@ -228,21 +241,37 @@ export function TransactionFilters({ categories, onFilterChange, currentFilters,
                   <button
                     key={category.id}
                     onClick={() => handleCategoryToggle(category.id)}
-                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 sm:gap-1.5 min-h-[44px] ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                       localFilters.categoryIds.includes(category.id)
-                        ? 'ring-2 ring-offset-2 dark:ring-offset-[#1a1a1a]'
-                        : 'opacity-60 hover:opacity-100'
+                        ? 'bg-[#8B7355] text-white'
+                        : 'bg-white dark:bg-[#2a2a2a] text-[#8B7355] border border-[#8B7355] hover:bg-[#8B7355] hover:text-white'
                     }`}
-                    style={{
-                      backgroundColor: localFilters.categoryIds.includes(category.id)
-                        ? category.color
-                        : `${category.color}20`,
-                      color: localFilters.categoryIds.includes(category.id) ? 'white' : category.color,
-                      ringColor: category.color
-                    }}
                   >
-                    <span className="flex-shrink-0">{category.icon}</span>
-                    <span className="truncate max-w-[100px] sm:max-w-none">{category.name}</span>
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Tags (Pessoas)
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {tags.map(tag => (
+                  <button
+                    key={tag.id}
+                    onClick={() => handleTagToggle(tag.id)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      localFilters.tagIds?.includes(tag.id)
+                        ? 'bg-[#8B7355] text-white'
+                        : 'bg-white dark:bg-[#2a2a2a] text-[#8B7355] border border-[#8B7355] hover:bg-[#8B7355] hover:text-white'
+                    }`}
+                  >
+                    {tag.name}
                   </button>
                 ))}
               </div>

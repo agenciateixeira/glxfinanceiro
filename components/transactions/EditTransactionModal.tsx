@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Portal } from '@/components/ui/portal'
-import { X } from 'lucide-react'
+import { X, Tag as TagIcon, Plus } from 'lucide-react'
+import { detectPaymentMethod } from '@/lib/services/paymentMethodDetector'
 
 interface Category {
   id: string
@@ -14,6 +15,12 @@ interface Category {
   color: string
   icon: string
   type: 'income' | 'expense'
+}
+
+interface Tag {
+  id: string
+  name: string
+  color: string
 }
 
 interface Transaction {
@@ -26,6 +33,7 @@ interface Transaction {
   payment_method: string | null
   notes: string | null
   status: 'pending' | 'completed' | 'cancelled'
+  tags?: Tag[]
 }
 
 interface EditTransactionModalProps {
@@ -46,6 +54,10 @@ export function EditTransactionModal({
 
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [allTags, setAllTags] = useState<Tag[]>([])
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([])
+  const [newTagName, setNewTagName] = useState('')
+  const [showTagInput, setShowTagInput] = useState(false)
 
   // Form state
   const [description, setDescription] = useState('')
@@ -63,28 +75,108 @@ export function EditTransactionModal({
       setType(transaction.type)
       setCategoryId(transaction.category_id || '')
       setDate(transaction.date)
-      setPaymentMethod(transaction.payment_method || 'credit_card')
+
+      // Se não tem payment_method salvo, detecta automaticamente baseado na descrição
+      if (!transaction.payment_method || transaction.payment_method === 'credit_card') {
+        const detected = detectPaymentMethod(transaction.description)
+        setPaymentMethod(detected)
+      } else {
+        setPaymentMethod(transaction.payment_method)
+      }
+
       setNotes(transaction.notes || '')
-      fetchCategories()
+      setSelectedTags(transaction.tags || [])
+
+      fetchCategories(transaction.type)
+      fetchTags()
+      fetchTransactionTags()
     }
   }, [isOpen, transaction])
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchCategories()
-    }
-  }, [isOpen, type])
-
-  const fetchCategories = async () => {
+  const fetchCategories = async (categoryType: 'income' | 'expense') => {
     const { data } = await supabase
       .from('categories')
       .select('*')
       .or(`user_id.eq.${user?.id},is_system.eq.true`)
-      .eq('type', type)
+      .eq('type', categoryType)
       .order('name')
 
     if (data) {
       setCategories(data)
+    }
+  }
+
+  const fetchTags = async () => {
+    const { data } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('name')
+
+    if (data) {
+      setAllTags(data)
+    }
+  }
+
+  const fetchTransactionTags = async () => {
+    if (!transaction) return
+
+    const { data } = await supabase
+      .from('transaction_tags')
+      .select(`
+        tag_id,
+        tags (
+          id,
+          name,
+          color
+        )
+      `)
+      .eq('transaction_id', transaction.id)
+
+    if (data) {
+      const tags = data.map(item => item.tags).filter(Boolean) as Tag[]
+      setSelectedTags(tags)
+    }
+  }
+
+  const handleTypeChange = (newType: 'income' | 'expense') => {
+    setType(newType)
+    setCategoryId('')
+    fetchCategories(newType)
+  }
+
+  const handleAddTag = (tag: Tag) => {
+    if (!selectedTags.find(t => t.id === tag.id)) {
+      setSelectedTags([...selectedTags, tag])
+    }
+  }
+
+  const handleRemoveTag = (tagId: string) => {
+    setSelectedTags(selectedTags.filter(t => t.id !== tagId))
+  }
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return
+
+    try {
+      const { data: newTag, error } = await supabase
+        .from('tags')
+        .insert({
+          user_id: user?.id,
+          name: newTagName.trim(),
+          color: '#6b7280'
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      setAllTags([...allTags, newTag])
+      setSelectedTags([...selectedTags, newTag])
+      setNewTagName('')
+      setShowTagInput(false)
+    } catch (error) {
+      console.error('Erro ao criar tag:', error)
     }
   }
 
@@ -95,6 +187,7 @@ export function EditTransactionModal({
     setLoading(true)
 
     try {
+      // Atualiza transação
       const { error } = await supabase
         .from('transactions')
         .update({
@@ -110,6 +203,24 @@ export function EditTransactionModal({
 
       if (error) throw error
 
+      // Remove tags antigas
+      await supabase
+        .from('transaction_tags')
+        .delete()
+        .eq('transaction_id', transaction.id)
+
+      // Adiciona tags novas
+      if (selectedTags.length > 0) {
+        await supabase
+          .from('transaction_tags')
+          .insert(
+            selectedTags.map(tag => ({
+              transaction_id: transaction.id,
+              tag_id: tag.id
+            }))
+          )
+      }
+
       onSuccess()
       onClose()
     } catch (error) {
@@ -121,7 +232,7 @@ export function EditTransactionModal({
 
   if (!isOpen || !transaction) return null
 
-  const filteredCategories = categories.filter((c) => c.type === type)
+  const availableTags = allTags.filter(tag => !selectedTags.find(t => t.id === tag.id))
 
   return (
     <Portal>
@@ -156,10 +267,7 @@ export function EditTransactionModal({
             <div className="flex gap-2 p-1 bg-gray-100 dark:bg-[#2a2a2a] rounded-lg">
               <button
                 type="button"
-                onClick={() => {
-                  setType('expense')
-                  setCategoryId('')
-                }}
+                onClick={() => handleTypeChange('expense')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                   type === 'expense'
                     ? 'bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm'
@@ -170,10 +278,7 @@ export function EditTransactionModal({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setType('income')
-                  setCategoryId('')
-                }}
+                onClick={() => handleTypeChange('income')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
                   type === 'income'
                     ? 'bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 shadow-sm'
@@ -230,12 +335,101 @@ export function EditTransactionModal({
                 className="w-full h-11 px-3 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
               >
                 <option value="">Sem categoria</option>
-                {filteredCategories.map((cat) => (
+                {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <TagIcon className="h-4 w-4 inline mr-1" />
+                Tags
+              </label>
+
+              {/* Selected Tags */}
+              {selectedTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                      style={{
+                        backgroundColor: `${tag.color}20`,
+                        color: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag.id)}
+                        className="hover:opacity-70"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Tag */}
+              {!showTagInput && (
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.slice(0, 5).map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => handleAddTag(tag)}
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
+                      style={{ color: tag.color }}
+                    >
+                      + {tag.name}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowTagInput(true)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-gray-600 dark:text-gray-400"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Nova tag
+                  </button>
+                </div>
+              )}
+
+              {/* New Tag Input */}
+              {showTagInput && (
+                <div className="flex gap-2">
+                  <Input
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    placeholder="Nome da tag"
+                    className="h-9"
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCreateTag}
+                    className="h-9 px-3 bg-[#D4C5B9] hover:bg-[#C4B5A9]"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowTagInput(false)
+                      setNewTagName('')
+                    }}
+                    className="h-9 px-3"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Date */}

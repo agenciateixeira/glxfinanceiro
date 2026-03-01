@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { savePattern } from '@/lib/services/transactionLearning'
+import { extractPersonName, getColorForName } from '@/lib/services/personExtractor'
+import { detectPaymentMethod } from '@/lib/services/paymentMethodDetector'
 
 interface ClassifiedTransaction {
   date: string
@@ -26,6 +28,13 @@ export async function POST(request: NextRequest) {
 
     // Lê as transações classificadas
     const body = await request.json()
+    console.log('[Confirm Import Smart] Received body:', {
+      hasTransactions: !!body.transactions,
+      transactionCount: body.transactions?.length,
+      hasPeriod: !!body.period,
+      firstTransaction: body.transactions?.[0]
+    })
+
     const { transactions, period } = body as {
       transactions: ClassifiedTransaction[]
       period?: {
@@ -44,6 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Confirm Import Smart] Processing ${transactions.length} transactions`)
+    console.log('[Confirm Import Smart] First transaction:', transactions[0])
 
     // Registra o período de importação
     let importPeriodId: string | null = null
@@ -107,7 +117,19 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Detecta método de pagamento automaticamente
+      const paymentMethod = detectPaymentMethod(transaction.description)
+
       // Salva transação
+      console.log('[Confirm Import Smart] Saving transaction:', {
+        date: transaction.date,
+        description: transaction.description.substring(0, 50),
+        amount: transaction.amount,
+        type: transaction.type,
+        category_id: categoryId,
+        payment_method: paymentMethod
+      })
+
       const { data: savedTransaction, error: transactionError } = await supabase
         .from('transactions')
         .insert({
@@ -117,21 +139,34 @@ export async function POST(request: NextRequest) {
           amount: transaction.amount,
           type: transaction.type,
           category_id: categoryId,
-          payment_method: 'debit', // Default
+          payment_method: paymentMethod,
           import_period_id: importPeriodId // Vincula ao período
         })
         .select()
         .single()
 
       if (transactionError) {
-        console.error('[Confirm Import Smart] Error saving transaction:', transactionError)
+        const errorMessage = transactionError.message || 'Unknown error'
+        const errorCode = transactionError.code || 'NO_CODE'
+        const errorDetails = JSON.stringify(transactionError.details || {})
+
+        console.error('[Confirm Import Smart] Error saving transaction:', {
+          description: transaction.description.substring(0, 50),
+          error: errorMessage,
+          code: errorCode,
+          details: errorDetails,
+          fullError: JSON.stringify(transactionError)
+        })
+
         results.push({
           description: transaction.description,
           success: false,
-          error: transactionError.message
+          error: `${errorCode}: ${errorMessage} - ${errorDetails}`
         })
         continue
       }
+
+      console.log('[Confirm Import Smart] Transaction saved successfully:', savedTransaction.id)
 
       // APRENDE o padrão
       await savePattern(
@@ -140,6 +175,61 @@ export async function POST(request: NextRequest) {
         transaction.type,
         categoryId
       )
+
+      // Extrai e aplica tag de pessoa (se encontrar)
+      const personName = extractPersonName(transaction.description)
+      if (personName) {
+        try {
+          // Busca ou cria a tag
+          const { data: existingTag } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('name', personName)
+            .single()
+
+          let tagId = existingTag?.id
+
+          if (!tagId) {
+            // Cria nova tag
+            const { data: newTag, error: tagError } = await supabase
+              .from('tags')
+              .insert({
+                user_id: user.id,
+                name: personName,
+                color: getColorForName(personName)
+              })
+              .select()
+              .single()
+
+            if (tagError) {
+              console.error('[Confirm Import Smart] Error creating tag:', tagError)
+            } else {
+              tagId = newTag.id
+              console.log(`[Confirm Import Smart] Created tag: ${personName}`)
+            }
+          }
+
+          // Associa tag à transação
+          if (tagId) {
+            const { error: linkError } = await supabase
+              .from('transaction_tags')
+              .insert({
+                transaction_id: savedTransaction.id,
+                tag_id: tagId
+              })
+
+            if (linkError && linkError.code !== '23505') { // Ignora duplicate key error
+              console.error('[Confirm Import Smart] Error linking tag:', linkError)
+            } else {
+              console.log(`[Confirm Import Smart] Tagged transaction with: ${personName}`)
+            }
+          }
+        } catch (tagError) {
+          console.error('[Confirm Import Smart] Error processing tag:', tagError)
+          // Não falha a importação por erro de tag
+        }
+      }
 
       results.push({
         description: transaction.description,
