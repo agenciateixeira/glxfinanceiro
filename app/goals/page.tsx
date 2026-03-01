@@ -23,7 +23,7 @@ import {
 
 interface Goal {
   id: string
-  name: string
+  title: string
   description: string | null
   target_amount: number
   current_amount: number
@@ -102,7 +102,7 @@ export default function GoalsPage() {
     if (goal) {
       setEditingGoal(goal)
       setFormData({
-        name: goal.name,
+        name: goal.title,
         description: goal.description || '',
         target_amount: goal.target_amount.toString(),
         target_date: goal.target_date,
@@ -135,7 +135,7 @@ export default function GoalsPage() {
     try {
       const dataToSave = {
         user_id: user?.id,
-        name: formData.name,
+        title: formData.name,
         description: formData.description || null,
         target_amount: parseFloat(formData.target_amount),
         target_date: formData.target_date,
@@ -162,9 +162,19 @@ export default function GoalsPage() {
 
       handleCloseModal()
       fetchGoals()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar meta:', error)
-      showToast('Erro ao salvar meta', 'error')
+
+      // Verifica se a tabela não existe
+      if (error?.code === '42P01' || error?.message?.includes('relation') || error?.message?.includes('does not exist')) {
+        showToast(
+          'Tabela goals não encontrada',
+          'error',
+          'Execute o SQL lib/sql/goals.sql no Supabase primeiro'
+        )
+      } else {
+        showToast('Erro ao salvar meta', 'error', error?.message || 'Erro desconhecido')
+      }
     } finally {
       setSaving(false)
     }
@@ -329,7 +339,7 @@ export default function GoalsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">
-                          {goal.name}
+                          {goal.title}
                         </h3>
                         {isCompleted && (
                           <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
@@ -626,7 +636,7 @@ export default function GoalsPage() {
                   {selectedGoal.icon}
                 </div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">
-                  {selectedGoal.name}
+                  {selectedGoal.title}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Atual: {formatCurrency(selectedGoal.current_amount)} de {formatCurrency(selectedGoal.target_amount)}

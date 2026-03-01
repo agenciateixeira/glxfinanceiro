@@ -304,7 +304,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                  {goalProgress.goal_name}
+                  {goalProgress.goal_title}
                 </h3>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
                   Meta: {formatCurrency(goalProgress.target_amount)} até{' '}

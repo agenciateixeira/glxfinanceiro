@@ -10,7 +10,7 @@ export interface FinancialInsight {
 
 export interface GoalProgress {
   goal_id: string
-  goal_name: string
+  goal_title: string
   target_amount: number
   current_amount: number
   deadline: string
@@ -322,7 +322,7 @@ export async function analyzeGoalProgress(userId: string, goalId: string): Promi
 
     return {
       goal_id: goalId,
-      goal_name: goal.name,
+      goal_title: goal.title,
       target_amount: targetAmount,
       current_amount: currentAmount,
       deadline: goal.target_date,
