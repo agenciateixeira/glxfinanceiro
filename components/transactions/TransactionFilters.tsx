@@ -74,13 +74,20 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
     onFilterChange(newFilters)
   }
 
+  const formatDateToLocal = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
   const handleCustomDateChange = (dates: [Date | null, Date | null]) => {
     const [start, end] = dates
     const newFilters = {
       ...localFilters,
       period: 'custom' as const,
-      customStartDate: start ? start.toISOString().split('T')[0] : undefined,
-      customEndDate: end ? end.toISOString().split('T')[0] : undefined
+      customStartDate: start ? formatDateToLocal(start) : undefined,
+      customEndDate: end ? formatDateToLocal(end) : undefined
     }
     setLocalFilters(newFilters)
     if (start && end) {
