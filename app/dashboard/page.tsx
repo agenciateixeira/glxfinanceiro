@@ -44,6 +44,8 @@ import { DraggableWidget } from '@/components/dashboard/DraggableWidget'
 import { EditModeBar } from '@/components/dashboard/EditModeBar'
 import { Edit3 } from 'lucide-react'
 import { BankAccountsWidget } from '@/components/dashboard/BankAccountsWidget'
+import { PerformanceCard } from '@/components/dashboard/PerformanceCard'
+import { TopExpensesCard } from '@/components/dashboard/TopExpensesCard'
 
 interface RecentTransaction {
   id: string
@@ -88,6 +90,10 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('30d')
   const [loading, setLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [economicIndicators, setEconomicIndicators] = useState<any>(null)
+  const [topExpenses, setTopExpenses] = useState<any[]>([])
+  const [totalExpenses, setTotalExpenses] = useState(0)
+  const [patrimonyGrowth, setPatrimonyGrowth] = useState(0)
 
   // Hook para gerenciar layout dos widgets
   const { widgets, isLoading: isLoadingLayout, updateWidgetOrder, toggleWidgetVisibility, resetToDefault } = useWidgetLayout(user?.id)
@@ -340,6 +346,87 @@ export default function DashboardPage() {
         expensesChange,
         balanceChange,
       })
+
+      // Buscar indicadores econômicos mais recentes
+      const { data: indicators } = await supabase
+        .from('economic_indicators')
+        .select('*')
+        .order('reference_date', { ascending: false })
+        .limit(2) // Pegar os 2 últimos meses para calcular crescimento
+
+      if (indicators && indicators.length > 0) {
+        setEconomicIndicators(indicators[0])
+      }
+
+      // Buscar top despesas do mês atual
+      const now = new Date()
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+      const { data: monthlyExpenses } = await supabase
+        .from('transactions')
+        .select(`
+          id,
+          description,
+          amount,
+          date,
+          categories (
+            name,
+            icon,
+            color
+          )
+        `)
+        .eq('type', 'expense')
+        .gte('date', currentMonthStart.toISOString())
+        .lte('date', currentMonthEnd.toISOString())
+        .order('amount', { ascending: false })
+
+      if (monthlyExpenses) {
+        const expenses = monthlyExpenses.map((e: any) => ({
+          id: e.id,
+          description: e.description,
+          amount: e.amount,
+          category_name: e.categories?.name || 'Sem categoria',
+          category_color: e.categories?.color || '#gray',
+          category_icon: e.categories?.icon || '📦',
+          date: e.date,
+        }))
+        setTopExpenses(expenses)
+        const total = expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0)
+        setTotalExpenses(total)
+      }
+
+      // Calcular crescimento do patrimônio (baseado no saldo dos últimos 2 meses)
+      if (indicators && indicators.length >= 2) {
+        // Buscar saldo do mês atual
+        const thisMonth = new Date()
+        const lastMonth = new Date()
+        lastMonth.setMonth(lastMonth.getMonth() - 1)
+
+        const thisMonthStart = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1)
+        const lastMonthStart = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1)
+        const lastMonthEnd = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0)
+
+        // Saldo do mês passado
+        const { data: lastMonthTransactions } = await supabase
+          .from('transactions')
+          .select('amount, type')
+          .gte('date', lastMonthStart.toISOString())
+          .lte('date', lastMonthEnd.toISOString())
+
+        const lastMonthIncome = lastMonthTransactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0
+        const lastMonthExpenses = lastMonthTransactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0
+        const lastMonthBalance = lastMonthIncome - lastMonthExpenses
+
+        // Saldo do mês atual
+        const thisMonthBalance = currentIncome - currentExpenses
+
+        // Calcular crescimento percentual
+        if (lastMonthBalance > 0) {
+          const growth = ((thisMonthBalance - lastMonthBalance) / lastMonthBalance) * 100
+          setPatrimonyGrowth(growth)
+        }
+      }
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error)
     } finally {
@@ -654,6 +741,42 @@ export default function DashboardPage() {
                     )
                   })}
                   </div>
+                </DraggableWidget>
+              )}
+
+              {/* Performance Card */}
+              {economicIndicators && (isEditMode || isWidgetVisible('performance-card')) && (
+                <DraggableWidget
+                  id="performance-card"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('performance-card')}
+                  label="Performance vs Benchmarks"
+                  onToggleVisibility={() => toggleWidgetVisibility('performance-card')}
+                  order={getWidgetOrder('performance-card')}
+                >
+                  <PerformanceCard
+                    patrimonyGrowth={patrimonyGrowth}
+                    cdiRate={economicIndicators.cdi_rate || 0}
+                    ipcaRate={economicIndicators.ipca_rate || 0}
+                    month={new Date(economicIndicators.reference_date).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  />
+                </DraggableWidget>
+              )}
+
+              {/* Top Expenses Card */}
+              {topExpenses.length > 0 && (isEditMode || isWidgetVisible('top-expenses-card')) && (
+                <DraggableWidget
+                  id="top-expenses-card"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('top-expenses-card')}
+                  label="Top 10 Maiores Despesas"
+                  onToggleVisibility={() => toggleWidgetVisibility('top-expenses-card')}
+                  order={getWidgetOrder('top-expenses-card')}
+                >
+                  <TopExpensesCard
+                    expenses={topExpenses}
+                    totalExpenses={totalExpenses}
+                  />
                 </DraggableWidget>
               )}
 
