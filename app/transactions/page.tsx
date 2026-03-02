@@ -691,10 +691,16 @@ export default function TransactionsPage() {
                         >
                           {new Date(transaction.date).toLocaleDateString('pt-BR')}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
+                        >
                           {transaction.description}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                        >
                           {transaction.account_name ? (
                             <span
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -709,7 +715,10 @@ export default function TransactionsPage() {
                             <span className="text-gray-400 dark:text-gray-500">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                        >
                           {transaction.category_name ? (
                             <span
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -724,7 +733,10 @@ export default function TransactionsPage() {
                             <span className="text-gray-400 dark:text-gray-500">Sem categoria</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 text-sm cursor-pointer"
+                        >
                           {transaction.tags && transaction.tags.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {transaction.tags.map((tag) => (
@@ -744,7 +756,10 @@ export default function TransactionsPage() {
                             <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 whitespace-nowrap text-sm cursor-pointer"
+                        >
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               transaction.type === 'income'
@@ -755,7 +770,10 @@ export default function TransactionsPage() {
                             {transaction.type === 'income' ? 'Receita' : 'Despesa'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium">
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium cursor-pointer"
+                        >
                           <span
                             className={
                               transaction.type === 'income'
