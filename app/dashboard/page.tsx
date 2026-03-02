@@ -359,7 +359,6 @@ export default function DashboardPage() {
       }
 
       // Buscar top despesas do mês atual
-      const now = new Date()
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
       const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
