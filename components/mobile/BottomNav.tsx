@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Home, Receipt, Target, Menu, X, Wallet, FolderOpen, RefreshCw, Settings, User, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -119,9 +120,15 @@ export function BottomNav() {
             const active = isActive(item)
 
             return (
-              <button
+              <Link
                 key={item.href}
-                onClick={() => handleNavClick(item.href)}
+                href={item.href}
+                prefetch={true}
+                onClick={() => {
+                  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+                    navigator.vibrate(10)
+                  }
+                }}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-all tap-target",
                   "hover:bg-accent/50 rounded-lg",
@@ -139,7 +146,7 @@ export function BottomNav() {
                 )}>
                   {item.label}
                 </span>
-              </button>
+              </Link>
             )
           })}
 
@@ -212,9 +219,16 @@ export function BottomNav() {
                   const active = pathname === item.href
 
                   return (
-                    <button
+                    <Link
                       key={item.href}
-                      onClick={() => handleMenuItemClick(item.href)}
+                      href={item.href}
+                      prefetch={true}
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+                          navigator.vibrate(10)
+                        }
+                        setIsMenuOpen(false)
+                      }}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all tap-target",
                         "hover:bg-accent/50",
@@ -224,7 +238,7 @@ export function BottomNav() {
                     >
                       <Icon className="h-5 w-5" />
                       <span className="font-medium">{item.label}</span>
-                    </button>
+                    </Link>
                   )
                 })}
               </div>

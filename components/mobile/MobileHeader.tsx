@@ -46,16 +46,13 @@ export function MobileHeader({
           paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)',
         }}
       >
-        {/* Left side - Logo/Title */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <img
-              src="/logo.png"
-              alt="GLX"
-              className="w-8 h-8 object-contain"
-            />
-            <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
-          </div>
+        {/* Left side - Logo */}
+        <div className="flex items-center">
+          <img
+            src="/logo.png"
+            alt="GLX"
+            className="w-8 h-8 object-contain"
+          />
         </div>
 
         {/* Right side - Actions */}
