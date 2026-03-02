@@ -58,11 +58,24 @@
 
   html {
     @apply scroll-smooth;
+    /* PWA: Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
+    /* PWA: Prevent tap highlight on mobile */
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-background text-foreground transition-colors duration-200;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* PWA: Safe area for notched devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    /* PWA: Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+    /* PWA: Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Melhorias para inputs e selects no dark mode */
@@ -185,4 +198,83 @@
 .react-datepicker__day--range-start,
 .react-datepicker__day--range-end {
   @apply bg-[#8B7355] text-white;
+}
+
+/* PWA Mobile Utilities */
+@layer utilities {
+  /* Safe area utilities for iOS devices with notch */
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+  
+  .pt-safe {
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
+  }
+  
+  .px-safe {
+    padding-left: max(env(safe-area-inset-left), 1rem);
+    padding-right: max(env(safe-area-inset-right), 1rem);
+  }
+  
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .mt-safe {
+    margin-top: env(safe-area-inset-top);
+  }
+
+  /* Touch-friendly tap targets */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on tap */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Native-like scrolling */
+  .native-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Mobile-optimized transitions */
+  .mobile-transition {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* PWA Standalone mode detection */
+@media (display-mode: standalone) {
+  body {
+    /* Additional padding when in standalone mode */
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix input zoom on iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }

@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Sidebar } from './Sidebar'
+import { BottomNav } from '@/components/mobile/BottomNav'
+import { MobileHeader } from '@/components/mobile/MobileHeader'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -42,12 +44,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar Desktop */}
       <Sidebar />
 
+      {/* Mobile Header */}
+      <MobileHeader />
+
       {/* Main Content */}
       <div className="lg:pl-64">
-        <main className="min-h-screen">
+        <main className="min-h-screen pt-14 md:pt-0 pb-safe">
           {children}
         </main>
       </div>
+
+      {/* Bottom Navigation Mobile */}
+      <BottomNav />
     </div>
   )
 }
