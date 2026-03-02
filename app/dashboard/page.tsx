@@ -356,6 +356,16 @@ export default function DashboardPage() {
 
       if (indicators && indicators.length > 0) {
         setEconomicIndicators(indicators[0])
+
+        // Verificar se precisa atualizar (em background)
+        const lastUpdate = new Date(indicators[0].updated_at)
+        const daysSinceUpdate = Math.floor((now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (daysSinceUpdate > 30) {
+          console.log('📊 Indicadores desatualizados, chamando API de atualização em background...')
+          // Chamar em background, não bloquear o carregamento
+          fetch('/api/update-indicators').catch(err => console.error('Erro ao atualizar indicadores:', err))
+        }
       }
 
       // Buscar top despesas do mês atual
