@@ -81,6 +81,12 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
     return `${year}-${month}-${day}`
   }
 
+  const parseDateFromLocal = (dateString: string): Date => {
+    // Parse YYYY-MM-DD como data local, não UTC
+    const [year, month, day] = dateString.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
   const handleCustomDateChange = (dates: [Date | null, Date | null]) => {
     const [start, end] = dates
     const newFilters = {
@@ -226,8 +232,8 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
           <div className="pt-2">
             <DatePicker
               selectsRange
-              startDate={localFilters.customStartDate ? new Date(localFilters.customStartDate) : null}
-              endDate={localFilters.customEndDate ? new Date(localFilters.customEndDate) : null}
+              startDate={localFilters.customStartDate ? parseDateFromLocal(localFilters.customStartDate) : null}
+              endDate={localFilters.customEndDate ? parseDateFromLocal(localFilters.customEndDate) : null}
               onChange={handleCustomDateChange}
               dateFormat="dd/MM/yyyy"
               placeholderText="Selecione o período"
@@ -239,7 +245,7 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
             />
             {localFilters.customStartDate && localFilters.customEndDate && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {new Date(localFilters.customStartDate).toLocaleDateString('pt-BR')} até {new Date(localFilters.customEndDate).toLocaleDateString('pt-BR')}
+                {parseDateFromLocal(localFilters.customStartDate).toLocaleDateString('pt-BR')} até {parseDateFromLocal(localFilters.customEndDate).toLocaleDateString('pt-BR')}
               </p>
             )}
           </div>
