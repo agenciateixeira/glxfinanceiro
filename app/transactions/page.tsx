@@ -237,11 +237,18 @@ export default function TransactionsPage() {
       return null
     }
 
-    if (filters.period === 'custom' && filters.customStartDate) {
-      return filters.customStartDate
+    if (filters.period === 'custom') {
+      // Se tem data customizada, usa ela
+      if (filters.customStartDate) {
+        return filters.customStartDate
+      }
+      // Se não tem data customizada ainda, retorna null (mostra tudo)
+      return null
     }
 
     const days = periodMap[filters.period as keyof typeof periodMap]
+    if (!days) return null
+
     const date = new Date(now)
     date.setDate(date.getDate() - days)
     return date.toISOString().split('T')[0]
@@ -258,6 +265,11 @@ export default function TransactionsPage() {
       const dateFilter = getDateFilter()
       if (dateFilter) {
         query = query.gte('date', dateFilter)
+      }
+
+      // Filtro de data final (apenas para período customizado)
+      if (filters.period === 'custom' && filters.customEndDate) {
+        query = query.lte('date', filters.customEndDate)
       }
 
       // Filtro de tipo
