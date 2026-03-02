@@ -37,6 +37,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log('[Middleware] Path:', request.nextUrl.pathname, 'User:', user?.email || 'NO USER')
+
   // Protected routes
   if (
     !user &&
@@ -46,6 +48,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/auth')
   ) {
     // no user, redirect to login
+    console.log('[Middleware] Redirecting to login - no user found')
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

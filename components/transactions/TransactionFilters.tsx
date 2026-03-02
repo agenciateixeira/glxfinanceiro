@@ -18,9 +18,17 @@ interface Tag {
   color: string
 }
 
+interface BankAccount {
+  id: string
+  name: string
+  color: string
+  bank_name?: string
+}
+
 interface TransactionFiltersProps {
   categories: Category[]
   tags?: Tag[]
+  accounts?: BankAccount[]
   onFilterChange: (filters: FilterState) => void
   currentFilters: FilterState
   onClose?: () => void
@@ -33,6 +41,7 @@ export interface FilterState {
   categoryIds: string[]
   tagIds?: string[]
   type?: 'income' | 'expense' | 'all'
+  accountId?: string
 }
 
 const PERIOD_OPTIONS = [
@@ -43,7 +52,7 @@ const PERIOD_OPTIONS = [
   { value: 'all', label: 'Todos' }
 ]
 
-export function TransactionFilters({ categories, tags = [], onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
+export function TransactionFilters({ categories, tags = [], accounts = [], onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [localFilters, setLocalFilters] = useState<FilterState>(currentFilters)
 
@@ -80,12 +89,19 @@ export function TransactionFilters({ categories, tags = [], onFilterChange, curr
     onFilterChange(newFilters)
   }
 
+  const handleAccountChange = (accountId: string | undefined) => {
+    const newFilters = { ...localFilters, accountId }
+    setLocalFilters(newFilters)
+    onFilterChange(newFilters)
+  }
+
   const handleClearFilters = () => {
     const newFilters: FilterState = {
       period: '30d',
       categoryIds: [],
       tagIds: [],
-      type: 'all'
+      type: 'all',
+      accountId: undefined
     }
     setLocalFilters(newFilters)
     onFilterChange(newFilters)
@@ -95,7 +111,8 @@ export function TransactionFilters({ categories, tags = [], onFilterChange, curr
     localFilters.categoryIds.length > 0 ||
     (localFilters.tagIds && localFilters.tagIds.length > 0) ||
     localFilters.type !== 'all' ||
-    localFilters.period !== '30d'
+    localFilters.period !== '30d' ||
+    !!localFilters.accountId
 
   const incomeCategories = categories.filter(c => c.type === 'income')
   const expenseCategories = categories.filter(c => c.type === 'expense')
@@ -205,6 +222,47 @@ export function TransactionFilters({ categories, tags = [], onFilterChange, curr
               ))}
             </div>
           </div>
+
+          {/* Contas Bancárias */}
+          {accounts.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Conta Bancária
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <button
+                  onClick={() => handleAccountChange(undefined)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${
+                    !localFilters.accountId
+                      ? 'bg-[#8B7355] text-white'
+                      : 'bg-white dark:bg-[#2a2a2a] text-[#8B7355] border border-[#8B7355] hover:bg-[#8B7355] hover:text-white'
+                  }`}
+                >
+                  Todas as Contas
+                </button>
+                {accounts.map(account => (
+                  <button
+                    key={account.id}
+                    onClick={() => handleAccountChange(account.id)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-2 ${
+                      localFilters.accountId === account.id
+                        ? 'bg-[#8B7355] text-white'
+                        : 'bg-white dark:bg-[#2a2a2a] text-[#8B7355] border border-[#8B7355] hover:bg-[#8B7355] hover:text-white'
+                    }`}
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: account.color }}
+                    />
+                    <span className="flex-1">{account.name}</span>
+                    {account.bank_name && (
+                      <span className="text-xs opacity-70">{account.bank_name}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Categorias de Receita */}
           {incomeCategories.length > 0 && (

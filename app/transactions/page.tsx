@@ -34,6 +34,13 @@ interface Transaction {
   category_id: string | null
   notes: string | null
   tags: Tag[]
+  bank_account_id: string | null
+  account_id: string | null
+  account_name: string | null
+  account_bank_name: string | null
+  account_type: string | null
+  account_color: string | null
+  account_icon: string | null
 }
 
 export default function TransactionsPage() {
@@ -42,6 +49,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [tags, setTags] = useState<Tag[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [itemsToShow, setItemsToShow] = useState(50)
@@ -49,7 +57,8 @@ export default function TransactionsPage() {
     period: '30d',
     categoryIds: [],
     tagIds: [],
-    type: 'all'
+    type: 'all',
+    accountId: undefined
   })
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -78,6 +87,7 @@ export default function TransactionsPage() {
       fetchTransactions()
       fetchCategories()
       fetchTags()
+      fetchAccounts()
 
       // Setup Realtime subscriptions
       // RLS policies handle user filtering including shared spouse accounts
@@ -127,11 +137,27 @@ export default function TransactionsPage() {
         )
         .subscribe()
 
+      const accountsChannel = supabase
+        .channel('accounts-changes-tx')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'bank_accounts'
+          },
+          () => {
+            fetchAccounts()
+          }
+        )
+        .subscribe()
+
       // Cleanup subscriptions on unmount
       return () => {
         supabase.removeChannel(transactionsChannel)
         supabase.removeChannel(categoriesChannel)
         supabase.removeChannel(tagsChannel)
+        supabase.removeChannel(accountsChannel)
       }
     }
   }, [user])
@@ -164,7 +190,7 @@ export default function TransactionsPage() {
   const fetchTags = async () => {
     try {
       // RLS policies handle user filtering including shared spouse accounts
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('tags')
         .select('*')
         .order('name')
@@ -173,6 +199,23 @@ export default function TransactionsPage() {
       setTags(data || [])
     } catch (error) {
       console.error('Erro ao buscar tags:', error)
+    }
+  }
+
+  const fetchAccounts = async () => {
+    try {
+      // RLS policies handle user filtering including shared spouse accounts
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('is_default', { ascending: false })
+        .order('name')
+
+      if (error) throw error
+      setAccounts(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar contas:', error)
     }
   }
 
@@ -220,6 +263,11 @@ export default function TransactionsPage() {
       // Filtro de categorias
       if (filters.categoryIds.length > 0) {
         query = query.in('category_id', filters.categoryIds)
+      }
+
+      // Filtro de conta bancária
+      if (filters.accountId) {
+        query = query.eq('bank_account_id', filters.accountId)
       }
 
       query = query.order('date', { ascending: false }).limit(500)
@@ -428,16 +476,16 @@ export default function TransactionsPage() {
                 variant="outline"
                 size="icon"
                 className={`relative border-gray-200 dark:border-[#2a2a2a] ${
-                  (filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d')
+                  (filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d' || filters.accountId)
                     ? 'bg-[#D4C5B9]/10 border-[#D4C5B9]'
                     : ''
                 }`}
                 onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
               >
                 <Filter className="h-5 w-5" />
-                {(filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d') && (
+                {(filters.categoryIds.length > 0 || filters.type !== 'all' || filters.period !== '30d' || filters.accountId) && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 bg-[#D4C5B9] text-white text-xs rounded-full flex items-center justify-center">
-                    {filters.categoryIds.length + (filters.type !== 'all' ? 1 : 0) + (filters.period !== '30d' ? 1 : 0)}
+                    {filters.categoryIds.length + (filters.type !== 'all' ? 1 : 0) + (filters.period !== '30d' ? 1 : 0) + (filters.accountId ? 1 : 0)}
                   </span>
                 )}
               </Button>
@@ -480,6 +528,7 @@ export default function TransactionsPage() {
             <TransactionFilters
               categories={categories}
               tags={tags}
+              accounts={accounts}
               onFilterChange={setFilters}
               currentFilters={filters}
               onClose={() => setIsFilterDrawerOpen(false)}
@@ -542,6 +591,9 @@ export default function TransactionsPage() {
                         Descrição
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Conta
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Categoria
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -567,6 +619,21 @@ export default function TransactionsPage() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                           {transaction.description}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {transaction.account_name ? (
+                            <span
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                              style={{
+                                backgroundColor: `${transaction.account_color}20`,
+                                color: transaction.account_color,
+                              }}
+                            >
+                              {transaction.account_name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-500">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {transaction.category_name ? (
@@ -667,6 +734,17 @@ export default function TransactionsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
+                      {transaction.account_name && (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{
+                            backgroundColor: `${transaction.account_color}20`,
+                            color: transaction.account_color,
+                          }}
+                        >
+                          {transaction.account_name}
+                        </span>
+                      )}
                       {transaction.category_name && (
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
