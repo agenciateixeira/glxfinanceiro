@@ -3,6 +3,11 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Calendar, ChevronDown, Filter, X } from 'lucide-react'
+import DatePicker, { registerLocale } from 'react-datepicker'
+import ptBR from 'date-fns/locale/pt-BR'
+import 'react-datepicker/dist/react-datepicker.css'
+
+registerLocale('pt-BR', ptBR)
 
 interface Category {
   id: string
@@ -45,21 +50,42 @@ export interface FilterState {
 }
 
 const PERIOD_OPTIONS = [
-  { value: '7d', label: 'Últimos 7 dias' },
-  { value: '15d', label: 'Últimos 15 dias' },
-  { value: '30d', label: 'Últimos 30 dias' },
-  { value: '90d', label: 'Últimos 90 dias' },
-  { value: 'all', label: 'Todos' }
+  { value: '7d', label: '7 dias' },
+  { value: '15d', label: '15 dias' },
+  { value: '30d', label: '30 dias' },
+  { value: '90d', label: '90 dias' },
+  { value: 'all', label: 'Todos' },
+  { value: 'custom', label: 'Personalizado' }
 ]
 
 export function TransactionFilters({ categories, tags = [], accounts = [], onFilterChange, currentFilters, onClose }: TransactionFiltersProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [localFilters, setLocalFilters] = useState<FilterState>(currentFilters)
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false)
 
   const handlePeriodChange = (period: FilterState['period']) => {
-    const newFilters = { ...localFilters, period }
+    if (period === 'custom') {
+      setShowCustomDatePicker(true)
+    } else {
+      setShowCustomDatePicker(false)
+    }
+    const newFilters = { ...localFilters, period, customStartDate: undefined, customEndDate: undefined }
     setLocalFilters(newFilters)
     onFilterChange(newFilters)
+  }
+
+  const handleCustomDateChange = (dates: [Date | null, Date | null]) => {
+    const [start, end] = dates
+    const newFilters = {
+      ...localFilters,
+      period: 'custom' as const,
+      customStartDate: start ? start.toISOString().split('T')[0] : undefined,
+      customEndDate: end ? end.toISOString().split('T')[0] : undefined
+    }
+    setLocalFilters(newFilters)
+    if (start && end) {
+      onFilterChange(newFilters)
+    }
   }
 
   const handleCategoryToggle = (categoryId: string) => {
@@ -167,7 +193,7 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
       </div>
 
       {/* Período */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
           <Calendar className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">Período</span>
@@ -187,6 +213,30 @@ export function TransactionFilters({ categories, tags = [], accounts = [], onFil
             </button>
           ))}
         </div>
+
+        {/* Date Picker quando período personalizado está selecionado */}
+        {localFilters.period === 'custom' && (
+          <div className="pt-2">
+            <DatePicker
+              selectsRange
+              startDate={localFilters.customStartDate ? new Date(localFilters.customStartDate) : null}
+              endDate={localFilters.customEndDate ? new Date(localFilters.customEndDate) : null}
+              onChange={handleCustomDateChange}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="Selecione o período"
+              className="w-full px-4 py-2 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
+              calendarClassName="dark:bg-[#1a1a1a] dark:border-[#2a2a2a]"
+              monthsShown={2}
+              locale="pt-BR"
+              isClearable
+            />
+            {localFilters.customStartDate && localFilters.customEndDate && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {new Date(localFilters.customStartDate).toLocaleDateString('pt-BR')} até {new Date(localFilters.customEndDate).toLocaleDateString('pt-BR')}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filtros Avançados */}
