@@ -9,10 +9,11 @@ import { AddTransactionModal } from '@/components/transactions/AddTransactionMod
 import { EditTransactionModal } from '@/components/transactions/EditTransactionModal'
 import { TransactionDetailsModal } from '@/components/transactions/TransactionDetailsModal'
 import { SimpleImportModal } from '@/components/transactions/SimpleImportModal'
+import { BulkEditModal } from '@/components/transactions/BulkEditModal'
 import { TransactionFilters, FilterState } from '@/components/transactions/TransactionFilters'
 import { AlertDialog } from '@/components/ui/alert-dialog'
 import { Toast } from '@/components/ui/toast'
-import { Plus, Upload, Filter, Search, Download } from 'lucide-react'
+import { Plus, Upload, Filter, Search, Download, Edit } from 'lucide-react'
 
 interface Tag {
   id: string
@@ -69,6 +70,10 @@ export default function TransactionsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  // Bulk edit state
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([])
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false)
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -358,7 +363,31 @@ export default function TransactionsPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setItemsToShow(50)
+    setSelectedTransactionIds([]) // Limpar seleção ao mudar filtros
   }, [filters, searchTerm])
+
+  // Handlers para seleção múltipla
+  const handleSelectAll = () => {
+    if (selectedTransactionIds.length === displayedTransactions.length) {
+      setSelectedTransactionIds([])
+    } else {
+      setSelectedTransactionIds(displayedTransactions.map(t => t.id))
+    }
+  }
+
+  const handleSelectTransaction = (id: string) => {
+    setSelectedTransactionIds(prev =>
+      prev.includes(id)
+        ? prev.filter(tid => tid !== id)
+        : [...prev, id]
+    )
+  }
+
+  const handleBulkEditSuccess = () => {
+    fetchTransactions()
+    setSelectedTransactionIds([])
+    showToast(`${selectedTransactionIds.length} transação(ões) atualizada(s) com sucesso`, 'success')
+  }
 
   const totalIncome = transactions
     .filter(t => t.type === 'income')
@@ -455,6 +484,32 @@ export default function TransactionsPage() {
             </p>
           </div>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedTransactionIds.length > 0 && (
+          <div className="bg-gradient-to-r from-[#8B7355] to-[#7A6347] rounded-xl p-4 mb-6 text-white shadow-lg animate-in slide-in-from-bottom-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold">
+                  {selectedTransactionIds.length} selecionada{selectedTransactionIds.length !== 1 ? 's' : ''}
+                </div>
+                <button
+                  onClick={() => setSelectedTransactionIds([])}
+                  className="text-xs underline hover:no-underline opacity-90 hover:opacity-100"
+                >
+                  Limpar seleção
+                </button>
+              </div>
+              <Button
+                onClick={() => setIsBulkEditModalOpen(true)}
+                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Editar Selecionadas
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Actions Bar */}
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-4 border border-gray-200 dark:border-[#2a2a2a] mb-6">
@@ -584,6 +639,14 @@ export default function TransactionsPage() {
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-[#2a2a2a]/50 border-b border-gray-200 dark:border-[#2a2a2a]">
                     <tr>
+                      <th className="px-4 py-3 w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectedTransactionIds.length === displayedTransactions.length && displayedTransactions.length > 0}
+                          onChange={handleSelectAll}
+                          className="w-4 h-4 rounded border-gray-300 text-[#8B7355] focus:ring-[#8B7355] cursor-pointer"
+                        />
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Data
                       </th>
@@ -611,10 +674,21 @@ export default function TransactionsPage() {
                     {displayedTransactions.map((transaction) => (
                       <tr
                         key={transaction.id}
-                        onClick={() => handleRowClick(transaction)}
-                        className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a]/30 transition-colors cursor-pointer"
+                        className="hover:bg-gray-50 dark:hover:bg-[#2a2a2a]/30 transition-colors"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedTransactionIds.includes(transaction.id)}
+                            onChange={() => handleSelectTransaction(transaction.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 rounded border-gray-300 text-[#8B7355] focus:ring-[#8B7355] cursor-pointer"
+                          />
+                        </td>
+                        <td
+                          onClick={() => handleRowClick(transaction)}
+                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 cursor-pointer"
+                        >
                           {new Date(transaction.date).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
@@ -862,6 +936,17 @@ export default function TransactionsPage() {
           title={toast.title}
           description={toast.description}
           variant={toast.variant}
+        />
+
+        {/* Bulk Edit Modal */}
+        <BulkEditModal
+          isOpen={isBulkEditModalOpen}
+          onClose={() => setIsBulkEditModalOpen(false)}
+          onSuccess={handleBulkEditSuccess}
+          selectedIds={selectedTransactionIds}
+          categories={categories}
+          tags={tags}
+          accounts={accounts}
         />
       </div>
     </DashboardLayout>
