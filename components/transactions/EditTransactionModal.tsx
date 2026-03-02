@@ -23,12 +23,21 @@ interface Tag {
   color: string
 }
 
+interface BankAccount {
+  id: string
+  name: string
+  account_type: string
+  balance: number
+  is_active: boolean
+}
+
 interface Transaction {
   id: string
   description: string
   amount: number
   type: 'income' | 'expense'
   category_id: string | null
+  bank_account_id?: string | null
   date: string
   payment_method: string | null
   notes: string | null
@@ -54,6 +63,7 @@ export function EditTransactionModal({
 
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [allTags, setAllTags] = useState<Tag[]>([])
   const [selectedTags, setSelectedTags] = useState<Tag[]>([])
   const [newTagName, setNewTagName] = useState('')
@@ -64,6 +74,7 @@ export function EditTransactionModal({
   const [amount, setAmount] = useState('')
   const [type, setType] = useState<'income' | 'expense'>('expense')
   const [categoryId, setCategoryId] = useState('')
+  const [bankAccountId, setBankAccountId] = useState('')
   const [date, setDate] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('credit_card')
   const [notes, setNotes] = useState('')
@@ -74,6 +85,7 @@ export function EditTransactionModal({
       setAmount(transaction.amount.toString())
       setType(transaction.type)
       setCategoryId(transaction.category_id || '')
+      setBankAccountId(transaction.bank_account_id || '')
       setDate(transaction.date)
 
       // Se não tem payment_method salvo, detecta automaticamente baseado na descrição
@@ -88,6 +100,7 @@ export function EditTransactionModal({
       setSelectedTags(transaction.tags || [])
 
       fetchCategories(transaction.type)
+      fetchBankAccounts()
       fetchTags()
       fetchTransactionTags()
     }
@@ -103,6 +116,19 @@ export function EditTransactionModal({
 
     if (data) {
       setCategories(data)
+    }
+  }
+
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('*')
+      .eq('is_active', true)
+      .order('is_default', { ascending: false })
+      .order('name')
+
+    if (data) {
+      setBankAccounts(data)
     }
   }
 
@@ -195,6 +221,7 @@ export function EditTransactionModal({
           amount: parseFloat(amount),
           type,
           category_id: categoryId || null,
+          bank_account_id: bankAccountId || null,
           date,
           payment_method: paymentMethod,
           notes: notes || null,
@@ -338,6 +365,25 @@ export function EditTransactionModal({
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Bank Account */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Conta Bancária
+              </label>
+              <select
+                value={bankAccountId}
+                onChange={(e) => setBankAccountId(e.target.value)}
+                className="w-full h-11 px-3 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
+              >
+                <option value="">Sem conta vinculada</option>
+                {bankAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} - R$ {Number(acc.balance).toFixed(2)}
                   </option>
                 ))}
               </select>

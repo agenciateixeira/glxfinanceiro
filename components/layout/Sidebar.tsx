@@ -18,6 +18,7 @@ import {
   Bell,
   ChevronDown,
   RefreshCw,
+  Wallet,
 } from 'lucide-react'
 
 interface NavItem {
@@ -29,6 +30,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Contas', href: '/accounts', icon: Wallet },
   {
     name: 'Transações',
     href: '/transactions',

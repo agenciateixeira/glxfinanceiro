@@ -16,6 +16,14 @@ interface Category {
   type: 'income' | 'expense'
 }
 
+interface BankAccount {
+  id: string
+  name: string
+  account_type: string
+  balance: number
+  is_active: boolean
+}
+
 interface AddTransactionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -28,12 +36,14 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
 
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
 
   // Form state
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
   const [type, setType] = useState<'income' | 'expense'>('expense')
   const [categoryId, setCategoryId] = useState('')
+  const [bankAccountId, setBankAccountId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [paymentMethod, setPaymentMethod] = useState('credit_card')
   const [notes, setNotes] = useState('')
@@ -41,6 +51,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
   useEffect(() => {
     if (isOpen) {
       fetchCategories()
+      fetchBankAccounts()
       // Previne scroll no body quando modal aberto
       document.body.style.overflow = 'hidden'
     } else {
@@ -68,6 +79,26 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
     }
   }
 
+  const fetchBankAccounts = async () => {
+    const { data } = await supabase
+      .from('bank_accounts')
+      .select('*')
+      .eq('is_active', true)
+      .order('is_default', { ascending: false })
+      .order('name')
+
+    if (data) {
+      setBankAccounts(data)
+      // Seleciona conta padrão automaticamente
+      const defaultAccount = data.find(acc => acc.is_default)
+      if (defaultAccount && !bankAccountId) {
+        setBankAccountId(defaultAccount.id)
+      } else if (data.length > 0 && !bankAccountId) {
+        setBankAccountId(data[0].id)
+      }
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -79,6 +110,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
         amount: parseFloat(amount),
         type,
         category_id: categoryId || null,
+        bank_account_id: bankAccountId || null,
         date,
         payment_method: paymentMethod,
         notes: notes || null,
@@ -216,6 +248,25 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: AddTransacti
                 {filteredCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Bank Account */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Conta Bancária
+              </label>
+              <select
+                value={bankAccountId}
+                onChange={(e) => setBankAccountId(e.target.value)}
+                className="w-full h-11 px-3 bg-white dark:bg-[#2a2a2a] border border-gray-200 dark:border-[#3a3a3a] rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#D4C5B9]"
+              >
+                <option value="">Sem conta vinculada</option>
+                {bankAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} - R$ {Number(acc.balance).toFixed(2)}
                   </option>
                 ))}
               </select>

@@ -43,6 +43,7 @@ import { useWidgetLayout } from '@/hooks/useWidgetLayout'
 import { DraggableWidget } from '@/components/dashboard/DraggableWidget'
 import { EditModeBar } from '@/components/dashboard/EditModeBar'
 import { Edit3 } from 'lucide-react'
+import { BankAccountsWidget } from '@/components/dashboard/BankAccountsWidget'
 
 interface RecentTransaction {
   id: string
@@ -563,6 +564,20 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
+                </DraggableWidget>
+              )}
+
+              {/* Bank Accounts Widget */}
+              {(isEditMode || isWidgetVisible('bank-accounts')) && (
+                <DraggableWidget
+                  id="bank-accounts"
+                  isEditMode={isEditMode}
+                  isVisible={isWidgetVisible('bank-accounts')}
+                  label="Contas Bancárias"
+                  onToggleVisibility={() => toggleWidgetVisibility('bank-accounts')}
+                  order={getWidgetOrder('bank-accounts')}
+                >
+                  <BankAccountsWidget />
                 </DraggableWidget>
               )}
 
