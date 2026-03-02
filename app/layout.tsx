@@ -56,16 +56,15 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/logo.png" />
-        <link rel="apple-touch-icon" href="/pwa-192x192.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/pwa-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/pwa-192x192.png" />
-        <link rel="apple-touch-startup-image" href="/pwa-512x512.png" />
+        <link rel="apple-touch-icon" href="/pwa.png" />
+        <link rel="apple-touch-startup-image" href="/pwa.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="GLX" />
         <meta name="application-name" content="GLX" />
         <meta name="msapplication-TileColor" content="#D4C5B9" />
+        <meta name="msapplication-TileImage" content="/pwa.png" />
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="theme-color" content="#D4C5B9" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)" />

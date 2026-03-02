@@ -49,9 +49,11 @@ export function MobileHeader({
         {/* Left side - Logo/Title */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">GLX</span>
-            </div>
+            <img
+              src="/logo.png"
+              alt="GLX"
+              className="w-8 h-8 object-contain"
+            />
             <h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
           </div>
         </div>
