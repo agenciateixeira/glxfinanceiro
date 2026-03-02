@@ -40,3 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 update-indicators-2026.js
+run-migration.js
+fix-orphan-users.js
