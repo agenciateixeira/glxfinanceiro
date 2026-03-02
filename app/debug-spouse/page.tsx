@@ -13,6 +13,8 @@ export default function DebugSpousePage() {
     if (!user) return
 
     async function runTests() {
+      if (!user) return
+
       const testResults: any = {
         userId: user.id,
         userEmail: user.email,

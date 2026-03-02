@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Calendar, ChevronDown, Filter, X } from 'lucide-react'
 import DatePicker, { registerLocale } from 'react-datepicker'
-import ptBR from 'date-fns/locale/pt-BR'
+import { ptBR } from 'date-fns/locale/pt-BR'
 import 'react-datepicker/dist/react-datepicker.css'
 
 registerLocale('pt-BR', ptBR)

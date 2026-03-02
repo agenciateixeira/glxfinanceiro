@@ -160,7 +160,7 @@ export function EditTransactionModal({
       .eq('transaction_id', transaction.id)
 
     if (data) {
-      const tags = data.map(item => item.tags).filter(Boolean) as Tag[]
+      const tags = data.map(item => item.tags).filter(Boolean).flat() as Tag[]
       setSelectedTags(tags)
     }
   }

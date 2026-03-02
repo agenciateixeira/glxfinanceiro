@@ -396,7 +396,7 @@ function extractTransactionFromObject(obj: any): ParsedTransaction | null {
  * Parser Universal - detecta formato automaticamente
  */
 export function parseUniversal(content: string | Buffer, filename: string): ParseResult {
-  const text = content instanceof Buffer ? content.toString('utf-8') : content
+  const text = (content instanceof Buffer ? content.toString('utf-8') : content) as string
 
   let transactions: ParsedTransaction[] = []
   let detectedFormat: ParseResult['detectedFormat'] = 'unknown'

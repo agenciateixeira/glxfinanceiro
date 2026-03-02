@@ -968,8 +968,8 @@ export default function DashboardPage() {
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                             style={{
-                              backgroundColor: `${transaction.category_color}20`,
-                              color: transaction.category_color,
+                              backgroundColor: `${transaction.category_color || '#8B7355'}20`,
+                              color: transaction.category_color || '#8B7355',
                             }}
                           >
                             {transaction.category_name}

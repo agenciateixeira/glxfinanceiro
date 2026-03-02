@@ -203,7 +203,7 @@ export const SignupForm = () => {
                   className="h-12 text-base sm:text-lg pr-10"
                   autoFocus={step === 'email'}
                 />
-                {step !== 'email' && step !== 'name' && (
+                {(step === 'phone' || step === 'password' || step === 'ready') && (
                   <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
                 )}
               </div>

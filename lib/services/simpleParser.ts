@@ -428,7 +428,7 @@ function parseOFX(text: string): RawTransaction[] {
  * Parser Universal - detecta formato e extrai
  */
 export function parseSimple(content: string | Buffer, filename: string): SimpleParseResult {
-  const text = content instanceof Buffer ? content.toString('utf-8') : content
+  const text = (content instanceof Buffer ? content.toString('utf-8') : content) as string
   const errors: string[] = []
   let transactions: RawTransaction[] = []
   let format: SimpleParseResult['format'] = 'unknown'

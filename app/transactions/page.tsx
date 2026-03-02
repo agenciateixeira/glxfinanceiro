@@ -717,8 +717,8 @@ export default function TransactionsPage() {
                             <span
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                               style={{
-                                backgroundColor: `${transaction.account_color}20`,
-                                color: transaction.account_color,
+                                backgroundColor: `${transaction.account_color || '#8B7355'}20`,
+                                color: transaction.account_color || '#8B7355',
                               }}
                             >
                               {transaction.account_name}
@@ -735,8 +735,8 @@ export default function TransactionsPage() {
                             <span
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                               style={{
-                                backgroundColor: `${transaction.category_color}20`,
-                                color: transaction.category_color,
+                                backgroundColor: `${transaction.category_color || '#8B7355'}20`,
+                                color: transaction.category_color || '#8B7355',
                               }}
                             >
                               {transaction.category_name}
@@ -842,8 +842,8 @@ export default function TransactionsPage() {
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{
-                            backgroundColor: `${transaction.account_color}20`,
-                            color: transaction.account_color,
+                            backgroundColor: `${transaction.account_color || '#8B7355'}20`,
+                            color: transaction.account_color || '#8B7355',
                           }}
                         >
                           {transaction.account_name}
@@ -853,8 +853,8 @@ export default function TransactionsPage() {
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{
-                            backgroundColor: `${transaction.category_color}20`,
-                            color: transaction.category_color,
+                            backgroundColor: `${transaction.category_color || '#8B7355'}20`,
+                            color: transaction.category_color || '#8B7355',
                           }}
                         >
                           {transaction.category_icon} {transaction.category_name}

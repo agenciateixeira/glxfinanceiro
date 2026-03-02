@@ -31,7 +31,7 @@ export async function getSuggestion(
   userId: string,
   description: string
 ): Promise<TransactionSuggestion> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   try {
     // Busca padrão similar usando a função do Postgres
@@ -80,7 +80,7 @@ export async function savePattern(
   type: 'income' | 'expense',
   categoryId: string | null
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const normalized = normalizeDescription(description)
 
@@ -152,7 +152,7 @@ export async function getSuggestionsBatch(
  * Remove padrão específico
  */
 export async function deletePattern(userId: string, patternId: string): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   await supabase
     .from('transaction_patterns')
@@ -165,7 +165,7 @@ export async function deletePattern(userId: string, patternId: string): Promise<
  * Lista todos os padrões do usuário
  */
 export async function getUserPatterns(userId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('transaction_patterns')

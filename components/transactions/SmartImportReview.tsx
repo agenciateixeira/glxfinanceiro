@@ -218,18 +218,9 @@ export function SmartImportReview({
       sample: selectedTransactions.slice(0, 2)
     })
 
-    // Prepara transações para envio (garante que tem os campos corretos)
-    const transactionsToSend = selectedTransactions.map(t => ({
-      date: t.original.date,
-      description: t.original.description,
-      amount: t.original.amount,
-      type: t.type,
-      category_id: t.category_id
-    }))
+    console.log('[SmartImportReview] Sending transactions:', selectedTransactions.slice(0, 2))
 
-    console.log('[SmartImportReview] Sending transactions:', transactionsToSend.slice(0, 2))
-
-    onConfirm(transactionsToSend, period)
+    onConfirm(selectedTransactions, period)
   }
 
   // Confiança da sugestão

@@ -295,9 +295,9 @@ function AccountCard({ account, icon: Icon, onEdit, onDelete, formatCurrency }: 
       <div className="flex items-start justify-between mb-4">
         <div
           className="w-12 h-12 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${account.color}20` }}
+          style={{ backgroundColor: `${account.color}20`, color: account.color }}
         >
-          <Icon className="h-6 w-6" style={{ color: account.color }} />
+          <Icon className="h-6 w-6" />
         </div>
         <div className="flex gap-1">
           <button
