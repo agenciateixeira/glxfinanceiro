@@ -14,6 +14,15 @@ export const metadata: Metadata = {
   title: "Gestão GLX - Gestão Financeira Inteligente",
   description: "Sistema de gestão financeira personalizado para casais",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#D4C5B9" },
     { media: "(prefers-color-scheme: dark)", color: "#1A1A1A" },
