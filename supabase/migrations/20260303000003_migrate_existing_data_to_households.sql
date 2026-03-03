@@ -13,9 +13,10 @@ DECLARE
 BEGIN
   -- Para cada usuário que não tem household
   FOR user_record IN
-    SELECT id, full_name, email
-    FROM users
-    WHERE household_id IS NULL
+    SELECT u.id, u.full_name, au.email
+    FROM users u
+    LEFT JOIN auth.users au ON u.id = au.id
+    WHERE u.household_id IS NULL
   LOOP
     -- Criar household para este usuário
     INSERT INTO households (
@@ -176,13 +177,14 @@ BEGIN
         user1_household,
         share_record.user2_id,
         'spouse',
-        COALESCE(u.full_name, u.email),
-        u.email,
+        COALESCE(u.full_name, au.email),
+        au.email,
         'accepted',
         NOW(),
         true,
         true
       FROM users u
+      LEFT JOIN auth.users au ON u.id = au.id
       WHERE u.id = share_record.user2_id
       ON CONFLICT (user_id, household_id) DO UPDATE
       SET invitation_status = 'accepted',
@@ -275,9 +277,10 @@ SELECT
   h.family_name,
   h.household_type,
   COUNT(DISTINCT hm.user_id) as members_count,
-  array_agg(DISTINCT u.email) as members_emails
+  array_agg(DISTINCT au.email) as members_emails
 FROM households h
 LEFT JOIN household_members hm ON h.id = hm.household_id
 LEFT JOIN users u ON hm.user_id = u.id
+LEFT JOIN auth.users au ON u.id = au.id
 GROUP BY h.id, h.family_name, h.household_type
 ORDER BY h.created_at;
