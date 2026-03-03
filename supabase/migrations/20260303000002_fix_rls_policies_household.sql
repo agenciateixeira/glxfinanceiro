@@ -344,4 +344,12 @@ END $$;
 -- A tabela shared_accounts não é mais necessária
 -- Todo compartilhamento é gerenciado pelo household
 
-COMMENT ON TABLE IF EXISTS shared_accounts IS 'OBSOLETO: Use households system';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'shared_accounts'
+  ) THEN
+    COMMENT ON TABLE shared_accounts IS 'OBSOLETO: Use households system';
+  END IF;
+END $$;
